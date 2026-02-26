@@ -1,0 +1,40 @@
+[project]
+name = "microservice-template"
+version = "0.1.0"
+description = "Template base para microservicios con DDD y Arquitectura Hexagonal"
+readme = "README.md"
+requires-python = ">=3.11"
+
+# Aquí van tus dependencias de producción (equivalente a "dependencies" en package.json)
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "sqlalchemy>=2.0.29",
+    "asyncpg>=0.29.0",        # Driver para Postgres
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.1", # Para manejar variables de entorno
+]
+
+[project.optional-dependencies]
+# Dependencias de desarrollo (equivalente a "devDependencies")
+dev = [
+    "pytest>=8.1.1",
+    "pytest-asyncio>=0.23.6",
+    "ruff>=0.3.5",            # Linter y formatter (reemplaza a flake8, black, isort)
+    "mypy>=1.9.0",            # Type checker estricto
+]
+
+# Equivalente a la sección "scripts" de package.json
+[project.scripts]
+dev = "uvicorn src.main:app --reload --port 8000"
+start = "uvicorn src.main:app --host 0.0.0.0 --port 8000"
+
+[tool.ruff]
+# Configuración del linter (código limpio y sostenible)
+line-length = 88
+target-version = "py311"
+
+[tool.mypy]
+# Configuración estricta de tipado para tu core de dominio
+strict = true
+exclude = ["venv", ".venv"]
