@@ -25,16 +25,34 @@ dev = [
 ]
 
 # Equivalente a la sección "scripts" de package.json
-[project.scripts]
+[tool.poe.tasks]
 dev = "uvicorn src.main:app --reload --port 8000"
 start = "uvicorn src.main:app --host 0.0.0.0 --port 8000"
+test = "pytest tests/ -v"
+lint = "ruff check src/"
+typecheck = "mypy src/"
+
 
 [tool.ruff]
 # Configuración del linter (código limpio y sostenible)
 line-length = 88
 target-version = "py311"
 
+[tool.ruff.lint]
+# Habilitamos las reglas base (E, F) y la regla de McCabe (C90)
+select = ["E", "F", "C90"]
+
+[tool.ruff.lint.mccabe]
+# El estándar de la industria es 10.
+# Si una función tiene más de 10 caminos lógicos, Ruff lanzará un error.
+max-complexity = 10
+
 [tool.mypy]
 # Configuración estricta de tipado para tu core de dominio
 strict = true
 exclude = ["venv", ".venv"]
+
+[dependency-groups]
+dev = [
+    "poethepoet>=0.42.1",
+]

@@ -1,3 +1,5 @@
+# Proyecto base para API REST y microservicios con Python
+
 ## Usar uv
 
 instalar uv:
@@ -17,4 +19,40 @@ instalar dependencias
 uv sync --all-extras
 ```
 
-uv run uvicorn src.main:app --reload
+## Ejecutar el proyecto
+
+Ejecutar en modo desarrollo
+
+```bash
+uv run poe dev
+```
+
+
+Ejecutar en modo productivo
+
+```bash
+uv run poe start
+```
+
+## Ejecutar pruebas
+
+```bash
+uv run poe test
+```
+
+## Linting
+
+```bash
+uv run poe lint
+```
+## Formatear código
+
+```bash
+uv run poe format
+```
+
+## Chequear tipos
+
+```bash
+uv run poe typecheck
+```

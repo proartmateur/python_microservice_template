@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
     print("🛑 Apagando el servicio...")
 
 def create_app() -> FastAPI:
-    settings = get_settings() # Lo llamamos de nuevo, pero gracias a @lru_cache es instantáneo
+    settings = get_settings()
     
     app = FastAPI(
         title=settings.APP_NAME,
