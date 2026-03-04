@@ -1,10 +1,12 @@
 from functools import lru_cache
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # --- Configuración Base ---
-    APP_NAME: str = "Microservicio GenCLI"
+    APP_NAME: str = "Microservicio con GenCLI"
     ENVIRONMENT: str = Field(default="development")
     DEBUG: bool = False
 
@@ -14,11 +16,29 @@ class Settings(BaseSettings):
     PG_HOST: str
     PG_PORT: int = 5432
     PG_DB: str
-    
+    PG_SSLMODE: Literal["disable", "require"] = "disable"
+    PG_CONNECT_TIMEOUT: int = 10
+
     @property
     def pg_dsn(self) -> str:
         """Construye la URL de conexión dinámicamente para SQLAlchemy (Async)"""
-        return f"postgresql+asyncpg://{self.PG_USER}:{self.PG_PASSWORD}@{self.PG_HOST}:{self.PG_PORT}/{self.PG_DB}"
+        base = f"postgresql+asyncpg://{self.PG_USER}:{self.PG_PASSWORD}@{self.PG_HOST}:{self.PG_PORT}/{self.PG_DB}"
+        if self.PG_SSLMODE == "disable":
+            base += "?ssl=disable"
+        return base
+
+    @property
+    def pg_connect_args(self) -> dict[str, object]:
+        args: dict[str, object] = {"timeout": float(self.PG_CONNECT_TIMEOUT)}
+        if self.PG_SSLMODE == "require":
+            import ssl as _ssl
+            args["ssl"] = _ssl.create_default_context()
+        else:
+            # Deshabilitar explícitamente la negociación SSL.
+            # asyncpg intenta SSL por defecto; en Windows + Python 3.13
+            # esto puede causar "connection was closed in the middle of operation".
+            args["ssl"] = False
+        return args
 
     # --- SQL Server (Integración) ---
     MS_USER: str
@@ -52,7 +72,8 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """
     Patrón Singleton usando caché.
-    Garantiza que el archivo .env se lea y valide UNA SOLA VEZ, 
+    Garantiza que el archivo .env se lea y valide UNA SOLA VEZ,
     sin importar cuántas veces importes get_settings() en tu código.
     """
-    return Settings()
+    # BaseSettings resuelve campos requeridos desde entorno/.env en runtime.
+    return Settings()  # type: ignore[call-arg]

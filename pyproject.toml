@@ -13,6 +13,7 @@ dependencies = [
     "asyncpg>=0.29.0",        # Driver para Postgres
     "pydantic>=2.7.0",
     "pydantic-settings>=2.2.1", # Para manejar variables de entorno
+    "uuid6>=2025.0.1",
 ]
 
 [project.optional-dependencies]
