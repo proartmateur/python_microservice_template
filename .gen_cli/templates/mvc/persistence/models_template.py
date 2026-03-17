@@ -1,0 +1,18 @@
+import uuid
+from datetime import datetime
+
+from sqlalchemy import DateTime, String
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+
+from src.shared.infrastructure.persistence.database import Base
+
+
+class <ent>Model(Base):
+    __tablename__ = "<snake_name>s"
+
+    id_<snake_name>: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+
+(     $snake_prop$: Mapped[$prop_type$] = mapped_column(nullable=False)
+)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

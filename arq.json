@@ -27,6 +27,14 @@
         "destination": "<path>/domain/entities.py"
       },
       {
+        "template": "/mvc/persistence/models_template.py",
+        "destination": "<path>/infrastructure/persistence/models.py"
+      },
+      {
+        "template": "/mvc/persistence/repositories_template.py",
+        "destination": "<path>/infrastructure/persistence/repositories.py"
+      },
+      {
         "template": "/mvc/router_template.py",
         "destination": "<path>/infrastructure/http/routers.py"
       },
@@ -49,6 +57,10 @@
       {
         "template": "/mvc/__init__.py",
         "destination": "<path>/infrastructure/http/__init__.py"
+      },
+      {
+        "template": "/mvc/__init__.py",
+        "destination": "<path>/infrastructure/persistence/__init__.py"
       }
     ]
   },
