@@ -1,0 +1,61 @@
+[
+  {
+    "name": "atom",
+    "path": "/src/atoms",
+    "short_option": "-a",
+    "option": "--atom",
+    "description": "frontend atom component",
+    "templates": [
+      {
+        "template": "/atom/component.tsx",
+        "destination": "<path>/<ent>.tsx"
+      }
+    ]
+  },
+  {
+    "name": "atom",
+    "path": "/src/<ent>",
+    "short_option": "-r",
+    "option": "--repository",
+    "description": "frontend atom component",
+    "templates": [
+      {
+        "template": "/ddd/domain/IRepositiry.ts",
+        "destination": "<path>/infrastructure/<ent>Repository.ts"
+      }
+    ]
+  },
+  {
+    "name": "component",
+    "path": "/src/<ent>",
+    "short_option": "-c",
+    "option": "--component",
+    "description": "backend DDD component",
+    "has_props": true,
+    "prop_type_place": 2,
+    "prop_prop_place": 1,
+    "prop_prefix": null,
+    "prop_type_separator": ":",
+    "templates": [
+      {
+        "template": "/ddd/domain/IRepositiry.ts",
+        "destination": "<path>/domain/I<ent>Repository.ts"
+      },
+      {
+        "template": "/ddd/domain/Model.ts",
+        "destination": "<path>/domain/<ent>.ts",
+        "prop_naming": "<prop>VO",
+        "per_prop_import": "import { <prop>VO } from $dq$<path>/domain/value_objects/<prop>VO$dq$"
+      },
+      {
+        "template": "/ddd/domain/Dto.ts",
+        "destination": "<path>/domain/<ent>DTO.ts"
+      },
+      {
+        "template": "/ddd/domain/ValueObj.ts",
+        "destination": "<path>/domain/value_objects/<prop>VO.ts",
+        "per_prop": true
+      }
+    ]
+  }
+]
