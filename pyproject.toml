@@ -32,6 +32,7 @@ start = "uvicorn src.main:app --host 0.0.0.0 --port 8000"
 test = "pytest tests/ -v"
 lint = "ruff check src/"
 typecheck = "mypy src/"
+init_petras_table = "python src/modules/petras/scripts/create_petras_table.py"
 
 
 [tool.ruff]

@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.shared.infrastructure.persistence.database import db_manager
 from src.config import get_settings
 from src.modules.users.infrastructure.http.routers import router as users_router
-
+from src.modules.petras.infrastructure.http.routers import router as petras_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
@@ -56,6 +56,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(users_router, prefix="/api/v1")
+    app.include_router(petras_router, prefix="/api/v1")
 
     @app.get("/health", tags=["System"])
     async def health_check() -> dict[str, Any]:

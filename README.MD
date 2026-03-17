@@ -56,3 +56,9 @@ uv run poe format
 ```bash
 uv run poe typecheck
 ```
+
+## Crear tabla `petras` si no existe
+
+```bash
+uv run poe init_petras_table
+```
