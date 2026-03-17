@@ -13,21 +13,40 @@
     ]
   },
   {
-    "name": "atom",
-    "path": "/src/<ent>",
-    "short_option": "-r",
-    "option": "--repository",
-    "description": "frontend atom component",
+    "name": "mvc base",
+    "path": "/src/modules/<snake_name>s",
+    "short_option": "-m",
+    "option": "--mvc",
+    "description": "Genera lo esencial para tener un endpoint funcional, con controlador, servicio y repositorio",
+    "prop_type_separator": ":",
+    "prop_prop_place": 1,
+    "prop_type_place": 2,
     "templates": [
       {
-        "template": "/ddd/domain/IRepositiry.ts",
-        "destination": "<path>/infrastructure/<ent>Repository.ts"
+        "template": "/mvc/router_template.py",
+        "destination": "<path>/infrastructure/http/routers.py"
+      },
+      {
+        "template": "/mvc/schemas_template.py",
+        "destination": "<path>/infrastructure/http/schemas.py"
+      },
+      {
+        "template": "/mvc/__init__.py",
+        "destination": "<path>/__init__.py"
+      },
+      {
+        "template": "/mvc/__init__.py",
+        "destination": "<path>/infrastructure/__init__.py"
+      },
+      {
+        "template": "/mvc/__init__.py",
+        "destination": "<path>/infrastructure/http/__init__.py"
       }
     ]
   },
   {
     "name": "component",
-    "path": "/src/<ent>",
+    "path": "/src/<snake_name>s",
     "short_option": "-c",
     "option": "--component",
     "description": "backend DDD component",
