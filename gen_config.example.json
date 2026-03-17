@@ -1,0 +1,7 @@
+{
+    "headers_doc": false,
+    "author": "Enrique Nieto",
+    "author_email": "myself@example.com",
+    "templates_root": "C:/Users/ennim/Devs/project_templates/python_microservice_template/.gen_cli/templates",
+    "arq_file":"arq.json"
+}
