@@ -1,18 +1,5 @@
 [
   {
-    "name": "atom",
-    "path": "/src/atoms",
-    "short_option": "-a",
-    "option": "--atom",
-    "description": "frontend atom component",
-    "templates": [
-      {
-        "template": "/atom/component.tsx",
-        "destination": "<path>/<ent>.tsx"
-      }
-    ]
-  },
-  {
     "name": "mvc base",
     "path": "/src/modules/<snake_name>s",
     "short_option": "-m",
@@ -33,6 +20,10 @@
       {
         "template": "/mvc/persistence/repositories_template.py",
         "destination": "<path>/infrastructure/persistence/repositories.py"
+      },
+      {
+        "template": "/mvc/scripts/create_ent_teable.py",
+        "destination": "<path>/scripts/create_$snake_name$_table.py"
       },
       {
         "template": "/mvc/router_template.py",
@@ -60,7 +51,8 @@
       },
       {
         "template": "/mvc/__init__.py",
-        "destination": "<path>/infrastructure/persistence/__init__.py"
+        "destination": "<path>/infrastructure/persistence/__init__.py",
+        "onDone": "echo <destination> >> gen.log"
       }
     ]
   },

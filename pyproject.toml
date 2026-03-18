@@ -33,6 +33,7 @@ test = "pytest tests/ -v"
 lint = "ruff check src/"
 typecheck = "mypy src/"
 init_petras_table = "python src/modules/petras/scripts/create_petras_table.py"
+init_products_table = "python src/modules/products/scripts/create_product_table.py"
 
 
 [tool.ruff]

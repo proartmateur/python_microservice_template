@@ -1,6 +1,7 @@
 import uuid
 from typing import Optional
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.modules.users.infrastructure.persistence.models import UserModel
 from src.modules.users.domain.entities import UserEntity
@@ -32,3 +33,30 @@ class UserRepository:
             nombre=db_user.name,
             email=db_user.email,
         )
+
+    async def create(self, nombre: str, email: str) -> UserEntity:
+        """Crea un usuario nuevo y devuelve la entidad de dominio persistida."""
+        clean_name = nombre.strip()
+        clean_email = email.strip()
+
+        if not clean_name:
+            raise ValueError("El nombre es obligatorio")
+        if "@" not in clean_email:
+            raise ValueError("Email inválido")
+
+        user = UserEntity(nombre=clean_name, email=clean_email)
+        db_user = UserModel(
+            id_user=uuid.UUID(str(user.id_user)),
+            name=user.nombre,
+            email=user.email,
+        )
+
+        self.session.add(db_user)
+
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise ValueError("Ya existe un usuario con ese email") from exc
+
+        return user

@@ -19,11 +19,11 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config import get_settings
-from src.modules.petras.infrastructure.persistence.models import PetraModel
+from src.modules.<snake_name>s.infrastructure.persistence.models import <ent>Model
 from src.shared.infrastructure.persistence.database import Base
 
 
-async def create_petras_table_if_missing() -> None:
+async def create_<snake_name>s_table_if_missing() -> None:
     settings = get_settings()
 
     engine = create_async_engine(
@@ -37,20 +37,21 @@ async def create_petras_table_if_missing() -> None:
             await conn.run_sync(
                 lambda sync_conn: Base.metadata.create_all(
                     sync_conn,
-                    tables=[PetraModel.__table__],
+                    tables=[<ent>Model.__table__],
                     checkfirst=True,
                 )
             )
-        print("Tabla 'petras' verificada/creada correctamente.")
+        print("Tabla '<snake_name>s' verificada/creada correctamente.")
     finally:
         await engine.dispose()
 
 
 def main() -> None:
-    asyncio.run(create_petras_table_if_missing())
+    asyncio.run(create_<snake_name>s_table_if_missing())
 
 
 if __name__ == "__main__":
-    print("Creando tabla Petras...")
+    print("Creando tabla <ent>s...")
     main()
     print("Tabla creada!")
+

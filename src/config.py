@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     APP_NAME: str = "Microservicio con GenCLI"
     ENVIRONMENT: str = Field(default="development")
     DEBUG: bool = False
+    API_VERSION: str = "1.0.0"
+    API_DESCRIPTION: str = "API REST para modulos del microservicio"
+    OPENAPI_URL: str = "/openapi.json"
+    DOCS_URL: str = "/docs"
+    REDOC_URL: str = "/redoc"
 
     # --- PostgreSQL (Base Principal) ---
     PG_USER: str

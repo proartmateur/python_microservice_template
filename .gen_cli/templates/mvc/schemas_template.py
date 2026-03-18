@@ -13,7 +13,7 @@ class <ent>Response(BaseModel):
 
 
 # Explicit mapper keeps HTTP contract decoupled from domain internals.
-def to_user_response(<snake_name>: <ent>Entity) -> <ent>Response:
+def to_<snake_name>_response(<snake_name>: <ent>Entity) -> <ent>Response:
     return <ent>Response(
         id=UUID(str(<snake_name>.id_<snake_name>)),
 (         $camel_prop$= <snake_name>.$camel_prop$,

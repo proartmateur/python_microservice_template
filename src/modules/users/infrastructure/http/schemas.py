@@ -13,6 +13,15 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 
+class UserCreateRequest(BaseModel):
+    nombre: str
+    email: str
+
+
+class ErrorResponse(BaseModel):
+    detail: str
+
+
 # Explicit mapper keeps HTTP contract decoupled from domain internals.
 def to_user_response(user: UserEntity) -> UserResponse:
     return UserResponse(

@@ -9,7 +9,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.shared.infrastructure.persistence.database import db_manager
 from src.config import get_settings
 from src.modules.users.infrastructure.http.routers import router as users_router
-from src.modules.petras.infrastructure.http.routers import router as petras_router
+
+from src.modules.products.infrastructure.http.routers import router as products_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
@@ -51,14 +52,25 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title=settings.APP_NAME,
+        description=settings.API_DESCRIPTION,
+        version=settings.API_VERSION,
         debug=settings.DEBUG,
+        docs_url=settings.DOCS_URL,
+        redoc_url=settings.REDOC_URL,
+        openapi_url=settings.OPENAPI_URL,
         lifespan=lifespan
     )
 
     app.include_router(users_router, prefix="/api/v1")
-    app.include_router(petras_router, prefix="/api/v1")
+    app.include_router(products_router, prefix="/api/v1")
 
-    @app.get("/health", tags=["System"])
+    @app.get(
+        "/health",
+        tags=["System"],
+        summary="Health check",
+        description="Valida que la API este levantada y devuelve el entorno activo.",
+        response_description="Estado basico del servicio",
+    )
     async def health_check() -> dict[str, Any]:
         return {
             "status": "ok",
