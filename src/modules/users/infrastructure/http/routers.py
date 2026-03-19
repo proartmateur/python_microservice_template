@@ -1,17 +1,48 @@
 # src/modules/users/infrastructure/http/routers.py
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.shared.infrastructure.persistence.database import get_db_session
 from src.modules.users.infrastructure.persistence.repositories import UserRepository
 from src.modules.users.infrastructure.http.schemas import (
     ErrorResponse,
     UserCreateRequest,
+    UserPaginatedResponse,
     UserResponse,
     to_user_response,
 )
 
 router = APIRouter(prefix="/users", tags=["Users"])
+
+
+@router.get(
+    "/",
+    response_model=UserPaginatedResponse,
+    summary="Listar usuarios paginados",
+    description="Lista usuarios aplicando paginacion por numero de pagina y limite de resultados.",
+    response_description="Usuarios paginados",
+    responses={
+        400: {"model": ErrorResponse, "description": "Parametros de paginacion invalidos"},
+        422: {"description": "Error de validacion de FastAPI"},
+    },
+)
+async def list_users(
+        limit: int = Query(default=5, ge=1, description="Cantidad maxima de registros por pagina"),
+        page: int = Query(default=0, ge=0, description="Indice de pagina (base 0)"),
+        session: AsyncSession = Depends(get_db_session)
+):
+    repo = UserRepository(session)
+
+    try:
+        users = await repo.list_paginated(limit=limit, page=page)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return UserPaginatedResponse(
+        page=page,
+        limit=limit,
+        items=[to_user_response(user) for user in users],
+    )
 
 
 @router.post(

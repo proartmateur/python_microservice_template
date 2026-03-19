@@ -32,6 +32,7 @@ class UserRepository:
             id_user=db_user.id_user,
             nombre=db_user.name,
             email=db_user.email,
+            created_at=db_user.created_at,
         )
 
     async def create(self, nombre: str, email: str) -> UserEntity:
@@ -49,6 +50,7 @@ class UserRepository:
             id_user=uuid.UUID(str(user.id_user)),
             name=user.nombre,
             email=user.email,
+            created_at=user.created_at,
         )
 
         self.session.add(db_user)
@@ -60,3 +62,37 @@ class UserRepository:
             raise ValueError("Ya existe un usuario con ese email") from exc
 
         return user
+
+    async def list_paginated(self, limit: int = 5, page: int = 0) -> list[UserEntity]:
+        """Lista usuarios con paginado basado en pagina y limite."""
+        if limit is None:
+            limit = 5
+        if page is None:
+            page = 0
+
+        if limit <= 0:
+            raise ValueError("limit debe ser mayor a 0")
+        if page < 0:
+            raise ValueError("page no puede ser negativo")
+
+        offset = page * limit
+        stmt = (
+            select(UserModel)
+            .order_by(UserModel.created_at, UserModel.id_user)
+            .offset(offset)
+            .limit(limit)
+        )
+
+        result = await self.session.execute(stmt)
+        db_users = result.scalars().all()
+
+        return [
+            UserEntity(
+                id_user=db_user.id_user,
+                nombre=db_user.name,
+                email=db_user.email,
+                created_at=db_user.created_at,
+            )
+            for db_user in db_users
+        ]
+

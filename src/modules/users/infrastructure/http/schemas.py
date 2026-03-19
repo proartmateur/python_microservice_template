@@ -22,6 +22,12 @@ class ErrorResponse(BaseModel):
     detail: str
 
 
+class UserPaginatedResponse(BaseModel):
+    page: int
+    limit: int
+    items: list[UserResponse]
+
+
 # Explicit mapper keeps HTTP contract decoupled from domain internals.
 def to_user_response(user: UserEntity) -> UserResponse:
     return UserResponse(
