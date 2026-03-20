@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.modules.users.infrastructure.persistence.models import UserModel
@@ -11,11 +12,55 @@ class UserRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def list_paginated(self, limit: int = 5, page: int = 0) -> tuple[list[UserEntity], int, int]:
+        """Lista usuarios paginados y devuelve tambien total de usuarios y paginas."""
+        if limit is None:
+            limit = 5
+        if page is None:
+            page = 0
+
+        if limit <= 0:
+            raise ValueError("limit debe ser mayor a 0")
+        if page < 0:
+            raise ValueError("page no puede ser negativo")
+
+        count_stmt = select(func.count()).select_from(UserModel).where(UserModel.deleted_at.is_(None))
+        count_result = await self.session.execute(count_stmt)
+        total_users = count_result.scalar_one()
+        total_pages = (total_users + limit - 1) // limit
+
+        offset = page * limit
+        stmt = (
+            select(UserModel)
+            .where(UserModel.deleted_at.is_(None))
+            .order_by(UserModel.created_at, UserModel.id_user)
+            .offset(offset)
+            .limit(limit)
+        )
+
+        result = await self.session.execute(stmt)
+        db_users = result.scalars().all()
+
+        users = [
+            UserEntity(
+                id_user=db_user.id_user,
+                nombre=db_user.name,
+                email=db_user.email,
+                created_at=db_user.created_at,
+            )
+            for db_user in db_users
+        ]
+
+        return users, total_users, total_pages
+
     async def find_by_id(self, user_id: uuid.UUID) -> Optional[UserEntity]:
         """Busca un usuario por su UUID y devuelve la Entidad de Dominio"""
 
         # 1. Construimos el SELECT
-        stmt = select(UserModel).where(UserModel.id_user == user_id)
+        stmt = select(UserModel).where(
+            UserModel.id_user == user_id,
+            UserModel.deleted_at.is_(None),
+        )
 
         # 2. Ejecutamos la consulta asíncrona
         result = await self.session.execute(stmt)
@@ -34,6 +79,22 @@ class UserRepository:
             email=db_user.email,
             created_at=db_user.created_at,
         )
+
+    async def soft_delete(self, user_id: uuid.UUID) -> bool:
+        """Marca un usuario como eliminado sin borrarlo fisicamente."""
+        stmt = select(UserModel).where(
+            UserModel.id_user == user_id,
+            UserModel.deleted_at.is_(None),
+        )
+        result = await self.session.execute(stmt)
+        db_user = result.scalar_one_or_none()
+
+        if db_user is None:
+            return False
+
+        db_user.deleted_at = datetime.now(timezone.utc)
+        await self.session.commit()
+        return True
 
     async def create(self, nombre: str, email: str) -> UserEntity:
         """Crea un usuario nuevo y devuelve la entidad de dominio persistida."""
@@ -62,37 +123,3 @@ class UserRepository:
             raise ValueError("Ya existe un usuario con ese email") from exc
 
         return user
-
-    async def list_paginated(self, limit: int = 5, page: int = 0) -> list[UserEntity]:
-        """Lista usuarios con paginado basado en pagina y limite."""
-        if limit is None:
-            limit = 5
-        if page is None:
-            page = 0
-
-        if limit <= 0:
-            raise ValueError("limit debe ser mayor a 0")
-        if page < 0:
-            raise ValueError("page no puede ser negativo")
-
-        offset = page * limit
-        stmt = (
-            select(UserModel)
-            .order_by(UserModel.created_at, UserModel.id_user)
-            .offset(offset)
-            .limit(limit)
-        )
-
-        result = await self.session.execute(stmt)
-        db_users = result.scalars().all()
-
-        return [
-            UserEntity(
-                id_user=db_user.id_user,
-                nombre=db_user.name,
-                email=db_user.email,
-                created_at=db_user.created_at,
-            )
-            for db_user in db_users
-        ]
-

@@ -46,7 +46,9 @@ Variables de entorno disponibles para personalizar la documentacion:
 Ejemplo de endpoint documentado:
 
 - `POST /api/v1/users/` crea un usuario
+- `GET /api/v1/users/` lista usuarios con paginado (`limit`, `page`)
 - `GET /api/v1/users/{user_id}` consulta un usuario por UUID
+- `DELETE /api/v1/users/{user_id}` aplica soft delete
 
 
 Ejecutar en modo productivo
@@ -83,3 +85,12 @@ uv run poe typecheck
 ```bash
 uv run poe init_petras_table
 ```
+
+## Agregar columna `deleted_at` en `users` (soft delete)
+
+Si ya tenias la tabla `users` creada antes del soft delete, ejecuta:
+
+```bash
+uv run poe add_users_deleted_at_column
+```
+

@@ -24,7 +24,11 @@ class ErrorResponse(BaseModel):
 
 class UserPaginatedResponse(BaseModel):
     page: int
+    total_pages: int
+    total_users: int
     limit: int
+    has_next: bool
+    has_prev: bool
     items: list[UserResponse]
 
 

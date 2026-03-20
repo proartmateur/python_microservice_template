@@ -1,6 +1,6 @@
 # src/modules/users/infrastructure/http/routers.py
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.shared.infrastructure.persistence.database import get_db_session
 from src.modules.users.infrastructure.persistence.repositories import UserRepository
@@ -34,13 +34,20 @@ async def list_users(
     repo = UserRepository(session)
 
     try:
-        users = await repo.list_paginated(limit=limit, page=page)
+        users, total_users, total_pages = await repo.list_paginated(limit=limit, page=page)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    has_prev = page > 0
+    has_next = (page + 1) < total_pages
+
     return UserPaginatedResponse(
         page=page,
+        total_pages=total_pages,
+        total_users=total_users,
         limit=limit,
+        has_next=has_next,
+        has_prev=has_prev,
         items=[to_user_response(user) for user in users],
     )
 
@@ -97,3 +104,28 @@ async def get_user(
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
     return to_user_response(user)
+
+
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar usuario (soft delete)",
+    description="Marca un usuario como eliminado de forma logica sin borrarlo fisicamente de la base de datos.",
+    responses={
+        204: {"description": "Usuario eliminado logicamente"},
+        404: {"model": ErrorResponse, "description": "Usuario no encontrado"},
+        422: {"description": "Error de validacion de FastAPI"},
+    },
+)
+async def delete_user(
+        user_id: uuid.UUID,
+        session: AsyncSession = Depends(get_db_session)
+):
+    repo = UserRepository(session)
+    was_deleted = await repo.soft_delete(user_id)
+
+    if not was_deleted:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
