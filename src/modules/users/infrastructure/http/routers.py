@@ -9,6 +9,7 @@ from src.modules.users.infrastructure.http.schemas import (
     UserCreateRequest,
     UserPaginatedResponse,
     UserResponse,
+    UserUpdateRequest,
     to_user_response,
 )
 
@@ -80,6 +81,44 @@ async def create_user(
         raise HTTPException(status_code=400, detail=message) from exc
 
     return to_user_response(user)
+
+
+@router.put(
+    "/{user_id}",
+    response_model=UserResponse,
+    summary="Actualizar usuario",
+    description="Actualiza un usuario existente por UUID.",
+    response_description="Usuario actualizado",
+    responses={
+        400: {"model": ErrorResponse, "description": "Datos de entrada inválidos"},
+        404: {"model": ErrorResponse, "description": "Usuario no encontrado"},
+        409: {"model": ErrorResponse, "description": "Email ya existe"},
+        422: {"description": "Error de validación de FastAPI"},
+    },
+)
+async def update_user(
+        user_id: uuid.UUID,
+        payload: UserUpdateRequest,
+        session: AsyncSession = Depends(get_db_session)
+):
+    repo = UserRepository(session)
+
+    try:
+        updated_user = await repo.update(
+            user_id=user_id,
+            nombre=payload.nombre,
+            email=payload.email,
+        )
+    except ValueError as exc:
+        message = str(exc)
+        if "Ya existe" in message:
+            raise HTTPException(status_code=409, detail=message) from exc
+        raise HTTPException(status_code=400, detail=message) from exc
+
+    if updated_user is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    return to_user_response(updated_user)
 
 
 @router.get(

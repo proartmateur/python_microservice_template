@@ -48,6 +48,7 @@ Ejemplo de endpoint documentado:
 - `POST /api/v1/users/` crea un usuario
 - `GET /api/v1/users/` lista usuarios con paginado (`limit`, `page`)
 - `GET /api/v1/users/{user_id}` consulta un usuario por UUID
+- `PUT /api/v1/users/{user_id}` actualiza un usuario
 - `DELETE /api/v1/users/{user_id}` aplica soft delete
 
 

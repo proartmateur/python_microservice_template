@@ -18,6 +18,11 @@ class UserCreateRequest(BaseModel):
     email: str
 
 
+class UserUpdateRequest(BaseModel):
+    nombre: str
+    email: str
+
+
 class ErrorResponse(BaseModel):
     detail: str
 

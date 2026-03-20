@@ -123,3 +123,40 @@ class UserRepository:
             raise ValueError("Ya existe un usuario con ese email") from exc
 
         return user
+
+    async def update(self, user_id: uuid.UUID, nombre: str, email: str) -> Optional[UserEntity]:
+        """Actualiza nombre y email de un usuario activo."""
+        clean_name = nombre.strip()
+        clean_email = email.strip()
+
+        if not clean_name:
+            raise ValueError("El nombre es obligatorio")
+        if "@" not in clean_email:
+            raise ValueError("Email inválido")
+
+        stmt = select(UserModel).where(
+            UserModel.id_user == user_id,
+            UserModel.deleted_at.is_(None),
+        )
+        result = await self.session.execute(stmt)
+        db_user = result.scalar_one_or_none()
+
+        if db_user is None:
+            return None
+
+        db_user.name = clean_name
+        db_user.email = clean_email
+
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise ValueError("Ya existe un usuario con ese email") from exc
+
+        return UserEntity(
+            id_user=db_user.id_user,
+            nombre=db_user.name,
+            email=db_user.email,
+            created_at=db_user.created_at,
+        )
+
