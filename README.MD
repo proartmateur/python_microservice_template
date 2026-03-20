@@ -64,6 +64,25 @@ uv run poe start
 uv run poe test
 ```
 
+## Ejecutar e2e de users (sin limpiar DB)
+
+Estas pruebas escriben en la base real y no eliminan registros fisicamente; solo validan el soft delete del endpoint.
+
+En PowerShell:
+
+```bash
+$env:RUN_E2E_USERS="1"
+python -m uv sync --group dev
+python -m uv run poe test_e2e_users
+```
+
+Alternativa si ya usas extras:
+
+```bash
+$env:RUN_E2E_USERS="1"
+uv run poe test_e2e_users
+```
+
 ## Linting
 
 ```bash

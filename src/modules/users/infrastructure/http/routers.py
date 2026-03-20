@@ -1,7 +1,10 @@
 # src/modules/users/infrastructure/http/routers.py
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.modules.users.infrastructure.http.controllers.get_user_controller import get_user_controller
+from src.modules.users.infrastructure.http.controllers.delete_user_controller import delete_user_controller
 from src.shared.infrastructure.persistence.database import get_db_session
 from src.modules.users.infrastructure.persistence.repositories import UserRepository
 from src.modules.users.infrastructure.http.schemas import (
@@ -133,15 +136,7 @@ async def get_user(
         user_id: uuid.UUID,
         session: AsyncSession = Depends(get_db_session)  # Inyeccion de la sesion
 ):
-    # Instanciamos el adaptador (repositorio) pasándole la sesión viva
-    repo = UserRepository(session)
-
-    # Delegamos la búsqueda
-    user = await repo.find_by_id(user_id)
-
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
+    user = await get_user_controller(user_id, session)
     return to_user_response(user)
 
 
@@ -160,11 +155,8 @@ async def delete_user(
         user_id: uuid.UUID,
         session: AsyncSession = Depends(get_db_session)
 ):
-    repo = UserRepository(session)
-    was_deleted = await repo.soft_delete(user_id)
 
-    if not was_deleted:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    was_deleted = await delete_user_controller(user_id, session)
 
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return was_deleted
 
