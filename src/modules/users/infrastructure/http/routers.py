@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.users.infrastructure.http.controllers.list_users_controller import list_users_controller
 from src.modules.users.infrastructure.http.controllers.get_user_controller import get_user_controller
 from src.modules.users.infrastructure.http.controllers.delete_user_controller import delete_user_controller
 from src.shared.infrastructure.persistence.database import get_db_session
@@ -35,25 +36,7 @@ async def list_users(
         page: int = Query(default=0, ge=0, description="Indice de pagina (base 0)"),
         session: AsyncSession = Depends(get_db_session)
 ):
-    repo = UserRepository(session)
-
-    try:
-        users, total_users, total_pages = await repo.list_paginated(limit=limit, page=page)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    has_prev = page > 0
-    has_next = (page + 1) < total_pages
-
-    return UserPaginatedResponse(
-        page=page,
-        total_pages=total_pages,
-        total_users=total_users,
-        limit=limit,
-        has_next=has_next,
-        has_prev=has_prev,
-        items=[to_user_response(user) for user in users],
-    )
+    return await list_users_controller(limit, page, session)
 
 
 @router.post(
