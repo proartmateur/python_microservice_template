@@ -151,3 +151,72 @@ def test_users_delete_invalid_uuid_returns_422(client: TestClient) -> None:
     assert response.status_code == 422, response.text
 
 
+def test_users_deleted_user_excluded_from_list(client: TestClient) -> None:
+    user = _create_user(client, "ghost")
+    user_id = user["id"]
+
+    delete_response = client.delete(f"/api/v1/users/{user_id}")
+    assert delete_response.status_code == 204, delete_response.text
+
+    list_response = client.get("/api/v1/users/", params={"limit": 100, "page": 0})
+    assert list_response.status_code == 200, list_response.text
+    assert not any(item["id"] == user_id for item in list_response.json()["items"])
+
+
+def test_users_double_delete_returns_404(client: TestClient) -> None:
+    user = _create_user(client, "double_del")
+    user_id = user["id"]
+
+    first = client.delete(f"/api/v1/users/{user_id}")
+    assert first.status_code == 204, first.text
+
+    second = client.delete(f"/api/v1/users/{user_id}")
+    assert second.status_code == 404, second.text
+
+
+def test_users_update_deleted_user_returns_404(client: TestClient) -> None:
+    user = _create_user(client, "upd_deleted")
+    user_id = user["id"]
+
+    client.delete(f"/api/v1/users/{user_id}")
+
+    payload = _build_user_payload("upd_deleted_new")
+    response = client.put(f"/api/v1/users/{user_id}", json=payload)
+    assert response.status_code == 404, response.text
+
+
+def test_users_pagination_has_next_and_has_prev(client: TestClient) -> None:
+    created_ids = [_create_user(client, f"pag_{i}")["id"] for i in range(3)]
+
+    page0 = client.get("/api/v1/users/", params={"limit": 1, "page": 0})
+    assert page0.status_code == 200, page0.text
+    body0 = page0.json()
+    assert body0["has_prev"] is False
+    assert body0["has_next"] is True
+
+    page1 = client.get("/api/v1/users/", params={"limit": 1, "page": 1})
+    assert page1.status_code == 200, page1.text
+    body1 = page1.json()
+    assert body1["has_prev"] is True
+    assert body1["has_next"] is True
+
+    last_page = body0["total_pages"] - 1
+    page_last = client.get("/api/v1/users/", params={"limit": 1, "page": last_page})
+    assert page_last.status_code == 200, page_last.text
+    body_last = page_last.json()
+    assert body_last["has_prev"] is True
+    assert body_last["has_next"] is False
+
+
+def test_users_update_keeping_same_email_no_conflict(client: TestClient) -> None:
+    user = _create_user(client, "same_email")
+
+    response = client.put(
+        f"/api/v1/users/{user['id']}",
+        json={"nombre": "nombre_nuevo", "email": user["email"]},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["nombre"] == "nombre_nuevo"
+    assert response.json()["email"] == user["email"]
+
+
