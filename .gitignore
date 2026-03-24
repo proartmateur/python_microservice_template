@@ -25,6 +25,11 @@ docker-compose.override.yml
 htmlcov/
 .coverage
 .coverage.*
+
+# Tool caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
