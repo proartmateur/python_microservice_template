@@ -26,11 +26,31 @@
         "destination": "<path>/scripts/create_$snake_name$_table.py"
       },
       {
-        "template": "/mvc/router_template.py",
+        "template": "/mvc/http/router_template.py",
         "destination": "<path>/infrastructure/http/routers.py"
       },
       {
-        "template": "/mvc/schemas_template.py",
+        "template": "/mvc/http/controllers/create_controller_template.py",
+        "destination": "<path>/infrastructure/http/controllers/create_$snake_name$_controller.py"
+      },
+      {
+        "template": "/mvc/http/controllers/get_controller_template.py",
+        "destination": "<path>/infrastructure/http/controllers/get_$snake_name$_controller.py"
+      },
+      {
+        "template": "/mvc/http/controllers/list_controller_template.py",
+        "destination": "<path>/infrastructure/http/controllers/list_$snake_name$s_controller.py"
+      },
+      {
+        "template": "/mvc/http/controllers/update_controller_template.py",
+        "destination": "<path>/infrastructure/http/controllers/update_$snake_name$_controller.py"
+      },
+      {
+        "template": "/mvc/http/controllers/delete_controller_template.py",
+        "destination": "<path>/infrastructure/http/controllers/delete_$snake_name$_controller.py"
+      },
+      {
+        "template": "/mvc/http/schemas_template.py",
         "destination": "<path>/infrastructure/http/schemas.py"
       },
       {
@@ -51,41 +71,16 @@
       },
       {
         "template": "/mvc/__init__.py",
-        "destination": "<path>/infrastructure/persistence/__init__.py",
+        "destination": "<path>/infrastructure/http/controllers/__init__.py"
+      },
+      {
+        "template": "/mvc/__init__.py",
+        "destination": "<path>/infrastructure/persistence/__init__.py"
+      },
+      {
+        "template": "/mvc/doc/readme_template.md",
+        "destination": "<path>/doc/readme.md",
         "onDone": "echo <destination> >> gen.log"
-      }
-    ]
-  },
-  {
-    "name": "component",
-    "path": "/src/<snake_name>s",
-    "short_option": "-c",
-    "option": "--component",
-    "description": "backend DDD component",
-    "has_props": true,
-    "prop_type_place": 2,
-    "prop_prop_place": 1,
-    "prop_prefix": null,
-    "prop_type_separator": ":",
-    "templates": [
-      {
-        "template": "/ddd/domain/IRepositiry.ts",
-        "destination": "<path>/domain/I<ent>Repository.ts"
-      },
-      {
-        "template": "/ddd/domain/Model.ts",
-        "destination": "<path>/domain/<ent>.ts",
-        "prop_naming": "<prop>VO",
-        "per_prop_import": "import { <prop>VO } from $dq$<path>/domain/value_objects/<prop>VO$dq$"
-      },
-      {
-        "template": "/ddd/domain/Dto.ts",
-        "destination": "<path>/domain/<ent>DTO.ts"
-      },
-      {
-        "template": "/ddd/domain/ValueObj.ts",
-        "destination": "<path>/domain/value_objects/<prop>VO.ts",
-        "per_prop": true
       }
     ]
   }

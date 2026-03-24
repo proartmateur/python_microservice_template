@@ -18,8 +18,23 @@ class <ent>CreateRequest(BaseModel):
 )
 
 
+class <ent>UpdateRequest(BaseModel):
+(    $camel_prop$: $prop_type$
+)
+
+
 class ErrorResponse(BaseModel):
     detail: str
+
+
+class <ent>PaginatedResponse(BaseModel):
+    page: int
+    total_pages: int
+    total_<snake_name>s: int
+    limit: int
+    has_next: bool
+    has_prev: bool
+    items: list[<ent>Response]
 
 
 # Explicit mapper keeps HTTP contract decoupled from domain internals.

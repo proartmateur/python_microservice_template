@@ -34,7 +34,8 @@ test = "pytest tests/ -v"
 test_e2e_users = "pytest tests/e2e/users -m e2e -v"
 lint = "ruff check src/"
 typecheck = "mypy src/"
-init_petras_table = "python src/modules/petras/scripts/create_petras_table.py"
+
+init_cosas_table = "python src/modules/cosas/scripts/create_cosa_table.py"
 init_products_table = "python src/modules/products/scripts/create_product_table.py"
 add_users_deleted_at_column = "python src/modules/users/scripts/add_deleted_at_column.py"
 

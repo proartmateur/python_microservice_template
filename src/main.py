@@ -10,6 +10,7 @@ from src.shared.infrastructure.persistence.database import db_manager
 from src.config import get_settings
 from src.modules.users.infrastructure.http.routers import router as users_router
 
+from src.modules.cosas.infrastructure.http.routers import router as cosas_router
 from src.modules.products.infrastructure.http.routers import router as products_router
 
 @asynccontextmanager
@@ -64,6 +65,7 @@ def create_app() -> FastAPI:
     app.include_router(users_router, prefix="/api/v1")
     app.include_router(products_router, prefix="/api/v1")
 
+    app.include_router(cosas_router, prefix="/api/v1")
     @app.get(
         "/health",
         tags=["System"],
