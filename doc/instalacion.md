@@ -7,6 +7,7 @@
 - pip (gestor de paquetes de Python)
 - uv (gestor de entornos y tareas)
 - genCLI 2.1+ [genCLI](https://github.com/proartmateur/gen_v2)
+  genCLI Binaries [win/ubuntu](http://172.16.33.13:8888/Enrique.Nieto/gen-cli-binaries)
 
 ### Opcionales pero recomendados
 - Un editor de código (recomendado: Visual Studio Code)
