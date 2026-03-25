@@ -23,8 +23,10 @@ class <ent>Entity:
     created_at: datetime = field(default_factory=get_utc_now)
 
     # Aquí irían los métodos de comportamiento (Domain Logic)
+    """ Ejemplo
     def update_email(self, new_email: str) -> None:
         if "@" not in new_email:
             raise ValueError("Email inválido")
         self.email = new_email
+    """
         # Aquí registraríamos el Domain Event: self.events.append(EmailUpdated(...))

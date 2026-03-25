@@ -1,5 +1,9 @@
 # Proyecto base para API REST y microservicios con Python
 
+## Tabla de contenidos
+- Arquitectura [arquitectura.md](doc/arquitectura.md)
+- Instalación y uso
+
 ## Usar uv
 
 instalar uv:
