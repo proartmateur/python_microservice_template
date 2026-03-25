@@ -32,10 +32,11 @@ dev = "uvicorn src.main:app --reload --port 8000"
 start = "uvicorn src.main:app --host 0.0.0.0 --port 8000"
 test = "pytest tests/ -v"
 test_e2e_users = "pytest tests/e2e/users -m e2e -v"
+test_e2e_cosas = "pytest tests/e2e/cosas -m e2e -v"
 lint = "ruff check src/"
 typecheck = "mypy src/"
 
-init_cosas_table = "python src/modules/cosas/scripts/create_cosa_table.py"
+
 init_products_table = "python src/modules/products/scripts/create_product_table.py"
 add_users_deleted_at_column = "python src/modules/users/scripts/add_deleted_at_column.py"
 

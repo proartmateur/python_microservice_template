@@ -81,6 +81,18 @@
         "template": "/mvc/doc/readme_template.md",
         "destination": "<path>/doc/readme.md",
         "onDone": "echo <destination> >> gen.log"
+      },
+      {
+        "template": "/tests/conftest_template.py",
+        "destination": "/tests/e2e/<snake_name>s/conftest.py"
+      },
+      {
+        "template": "/tests/test_flow_e2e_template.py",
+        "destination": "/tests/e2e/<snake_name>s/test_<snake_name>s_flow_e2e.py"
+      },
+      {
+        "template": "/tests/tests_doc_template.md",
+        "destination": "/tests/e2e/<snake_name>s/tests_doc.md"
       }
     ]
   }
