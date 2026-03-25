@@ -6,6 +6,7 @@
 - Python 3.12 o superior
 - pip (gestor de paquetes de Python)
 - uv (gestor de entornos y tareas)
+- genCLI 2.1+ [genCLI](https://github.com/proartmateur/gen_v2)
 
 ### Opcionales pero recomendados
 - Un editor de código (recomendado: Visual Studio Code)
