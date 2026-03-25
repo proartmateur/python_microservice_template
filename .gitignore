@@ -36,3 +36,4 @@ htmlcov/
 #genCLI
 gen_config.json
 gen.exe
+gen
