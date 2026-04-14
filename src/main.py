@@ -20,8 +20,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     print(f"🚀 Iniciando {settings.APP_NAME} en modo {settings.ENVIRONMENT}...")
 
     # 2. Encendemos el motor de base de datos
-    print(f"🔌 Conectando a Postgres en: {settings.PG_HOST}:{settings.PG_PORT}")
-    db_manager.init_db(settings.pg_dsn, connect_args=settings.pg_connect_args)
+    print(f"🔌 Conectando a SQL Server en: {settings.MS_HOST}:{settings.MS_PORT}")
+    db_manager.init_db(settings.ms_dsn, connect_args={})
 
     max_retries = 5
     retry_delay_seconds = 2
@@ -32,8 +32,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         except SQLAlchemyError as exc:
             if attempt == max_retries:
                 raise RuntimeError(
-                    "No se pudo establecer conexion a PostgreSQL tras varios intentos. "
-                    "Revisa PG_HOST/PG_PORT/PG_DB, credenciales, SSL y estado del servidor."
+                    "No se pudo establecer conexion a SQL Server tras varios intentos. "
+                    "Revisa MS_HOST/MS_PORT/MS_DB, credenciales y estado del servidor."
                 ) from exc
             print(
                 f"⚠️ Intento {attempt}/{max_retries} de conexion fallido. "
@@ -66,6 +66,7 @@ def create_app() -> FastAPI:
     app.include_router(products_router, prefix="/api/v1")
 
     app.include_router(cosas_router, prefix="/api/v1")
+
     @app.get(
         "/health",
         tags=["System"],

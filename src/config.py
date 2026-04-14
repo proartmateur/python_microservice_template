@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -45,25 +45,58 @@ class Settings(BaseSettings):
             args["ssl"] = False
         return args
 
-    # --- SQL Server (Integración) ---
-    MS_USER: str
-    MS_PASSWORD: str
-    MS_HOST: str
+    # --- SQL Server (Integración opcional) ---
+    MS_USER: Optional[str] = Field(default=None)
+    MS_PASSWORD: Optional[str] = Field(default=None)
+    MS_HOST: Optional[str] = Field(default=None)
     MS_PORT: int = 1433
-    MS_DB: str
-    
+    MS_DB: Optional[str] = Field(default=None)
+    DB_DRIVER: str = Field(default="ODBC Driver 18 for SQL Server")
+
+    @property
+    def ms_driver(self) -> str:
+        """Devuelve el driver ODBC a usar: el configurado si está instalado, si no el mejor disponible."""
+        import pyodbc
+        _FALLBACKS = [
+            "ODBC Driver 18 for SQL Server",
+            "ODBC Driver 17 for SQL Server",
+            "ODBC Driver 13 for SQL Server",
+            "SQL Server Native Client 11.0",
+            "SQL Server",
+        ]
+        available = pyodbc.drivers()
+        if self.DB_DRIVER in available:
+            return self.DB_DRIVER
+        for driver in _FALLBACKS:
+            if driver in available:
+                return driver
+        raise RuntimeError(
+            f"No se encontró ningún driver ODBC para SQL Server. "
+            f"Disponibles: {available}. "
+            f"Descarga el driver en: https://aka.ms/downloadmsodbcsql"
+        )
+
     @property
     def ms_dsn(self) -> str:
         """Construye la URL de conexión para SQL Server (Async)"""
-        return f"mssql+aioodbc://{self.MS_USER}:{self.MS_PASSWORD}@{self.MS_HOST}:{self.MS_PORT}/{self.MS_DB}?driver=ODBC+Driver+18+for+SQL+Server"
+        if not all([self.MS_USER, self.MS_PASSWORD, self.MS_HOST, self.MS_DB]):
+            raise RuntimeError(
+                "Faltan variables de entorno para SQL Server: MS_USER, MS_PASSWORD, MS_HOST, MS_DB"
+            )
+        driver = self.ms_driver.replace(" ", "+")
+        return (
+            f"mssql+aioodbc://{self.MS_USER}:{self.MS_PASSWORD}"
+            f"@{self.MS_HOST}:{self.MS_PORT}/{self.MS_DB}"
+            f"?driver={driver}&TrustServerCertificate=yes"
+        )
 
     # --- Infraestructura de Mensajería y Caché ---
     RABBITMQ_URL: str = Field(default="amqp://guest:guest@localhost:5672/")
     REDIS_URL: str = Field(default="redis://localhost:6379/0")
-    
+
     # --- Búsqueda (Meilisearch) ---
     MEILISEARCH_URL: str = Field(default="http://localhost:7700")
-    MEILISEARCH_MASTER_KEY: str
+    MEILISEARCH_MASTER_KEY: Optional[str] = Field(default=None)
 
     # --- Configuración del Lector ---
     model_config = SettingsConfigDict(

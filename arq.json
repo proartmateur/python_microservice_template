@@ -95,5 +95,19 @@
         "destination": "/tests/e2e/<snake_name>s/tests_doc.md"
       }
     ]
+  },
+  {
+    "name": "cosarara",
+    "path": "/src",
+    "short_option": "-s",
+    "option": "--cosarara",
+    "description": "Genera un archivo cosarara en src/ con el nombre de la entidad",
+    "templates": [
+      {
+        "template": "/cosarara/cosarara_template.py",
+        "destination": "<path>/$snake_name$.py",
+        "onDone": "echo <destination> >> gen.log"
+      }
+    ]
   }
 ]

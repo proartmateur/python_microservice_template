@@ -11,6 +11,7 @@ dependencies = [
     "uvicorn[standard]>=0.29.0",
     "sqlalchemy>=2.0.29",
     "asyncpg>=0.29.0",        # Driver para Postgres
+    "aioodbc>=0.5.0",         # Driver async para SQL Server (via ODBC)
     "pydantic>=2.7.0",
     "pydantic-settings>=2.2.1", # Para manejar variables de entorno
     "uuid6>=2025.0.1",
@@ -36,9 +37,12 @@ test_e2e_cosas = "pytest tests/e2e/cosas -m e2e -v"
 lint = "ruff check src/"
 typecheck = "mypy src/"
 
-
+init_cosas_table = "python src/modules/cosas/scripts/create_cosa_table.py"
 init_products_table = "python src/modules/products/scripts/create_product_table.py"
 add_users_deleted_at_column = "python src/modules/users/scripts/add_deleted_at_column.py"
+
+diag_pg = "python tests/diag_pg_connect.py"
+diag_ms = "python tests/diag_ms_connect.py"
 
 
 [tool.ruff]
