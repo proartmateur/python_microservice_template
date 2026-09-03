@@ -148,6 +148,11 @@ def register_create(
                 f"        if {field_checks}:\n"
                 f'            raise {entity_name}AlreadyExistsError("{entity_name} already exists")\n'
             )
+            documents[faker_path] = _insert_after_marker(
+                documents[faker_path],
+                "# gencli:faker-repository-imports",
+                exception_import,
+            )
         documents[faker_path] = _insert_after_marker(
             documents[faker_path],
             "# gencli:faker-repository-methods",

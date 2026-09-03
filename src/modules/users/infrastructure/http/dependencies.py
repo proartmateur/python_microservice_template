@@ -40,6 +40,12 @@ def get_faker_user_store() -> FakerUserStore:
     return _faker_user_store
 
 
+def reset_faker_user_store() -> None:
+    """Reinicia el store singleton. Util para aislar tests."""
+    global _faker_user_store
+    _faker_user_store = None
+
+
 def get_user_repository(
     session: AsyncSession | None = Depends(get_optional_db_session),
     store: FakerUserStore = Depends(get_faker_user_store),

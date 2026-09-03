@@ -129,7 +129,7 @@ def register_update(
             + [f"{p}=item.{p}" for p in properties]
             + ["created_at=item.created_at"]
         )
-        faker_assignments = "\n            ".join(
+        faker_assignments = "\n        ".join(
             f"item.{p} = values[{p!r}]" for p in properties
         )
         unique_fields = [p for p in properties if p in ("email", "nombre", "name", "code", "sku")]
@@ -143,6 +143,16 @@ def register_update(
                 f"        if {field_checks}:\n"
                 f'            raise {entity_name}AlreadyExistsError("{entity_name} already exists")\n'
             )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-imports",
+            exceptions_import,
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-imports",
+            "from uuid import UUID",
+        )
         documents[faker_path] = _insert_after_marker(
             documents[faker_path],
             "# gencli:faker-repository-methods",

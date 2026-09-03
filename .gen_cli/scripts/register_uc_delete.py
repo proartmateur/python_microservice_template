@@ -57,6 +57,11 @@ def register_delete(generated_file: Path, entity_name: str, snake_name: str, inl
         )
         documents[faker_path] = _insert_after_marker(
             documents[faker_path],
+            "# gencli:faker-repository-imports",
+            "from uuid import UUID",
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
             "# gencli:faker-repository-methods",
             (
                 f"    async def soft_delete(self, identifier: UUID) -> None:\n"

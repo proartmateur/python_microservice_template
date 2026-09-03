@@ -186,10 +186,20 @@ def get_<snake_name>_repository(
 - Smoke test: flujo CRUD completo (list/get/create/update/delete/paginated/
   find-by) pasa en modo faker sin Postgres.
 
-### Fase 6 — Pruebas
-- Test e2e con `REPOSITORY_DATA_SOURCE=faker` (sin Postgres) ejecutando CRUD.
-  Valida LSP: el mismo test pasa con ambos backends.
-- Test unitario del store faker: unicidad, soft_delete, keyset.
+### Fase 6 — Pruebas ✅
+- `tests/e2e/users/test_faker_crud_e2e.py`: 7 tests e2e con
+  `REPOSITORY_DATA_SOURCE=faker` (sin Postgres) cubriendo health, list, CRUD
+  completo, duplicado 409, paginated, find-by, 404. Valida LSP: los mismos
+  endpoints funcionan con ambos backends.
+- `tests/unit/modules/users/test_faker_user_repository.py`: 11 tests unitarios
+  del `FakerUserRepository` (seed, list, save, find_by_id, update, soft_delete,
+  duplicados, keyset paginated, find_by equals).
+- Smoke test gencli (`test_gencli_product_incremental_smoke_is_typed_and_idempotent`):
+  fix de bug preexistente en `register_uc_update.py` — `faker_assignments` con
+  indentación incorrecta causaba `IndentationError` en `faker_repositories.py`
+  que revertía todos los cambios via `_write_atomically`. Ahora pasa.
+- Suite completa: **60 passed, 0 failed**.
+- `ruff` + `mypy` limpios.
 
 ## 6. Riesgos y mitigaciones
 

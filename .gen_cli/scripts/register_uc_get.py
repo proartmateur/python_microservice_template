@@ -125,6 +125,11 @@ def register_get(
         )
         documents[faker_path] = _insert_after_marker(
             documents[faker_path],
+            "# gencli:faker-repository-imports",
+            "from uuid import UUID",
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
             "# gencli:faker-repository-methods",
             (
                 f"    async def find_by_id(self, identifier: UUID) -> {entity_name}Entity | None:\n"
