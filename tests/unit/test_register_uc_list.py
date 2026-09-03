@@ -10,6 +10,8 @@ PAGINATED_SCRIPT = (
     PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_list_paginated.py"
 )
 FIND_BY_SCRIPT = PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_find_by.py"
+CREATE_SCRIPT = PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_create.py"
+GET_SCRIPT = PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_get.py"
 
 
 def _write_base_module(project_root: Path) -> Path:
@@ -21,6 +23,13 @@ def _write_base_module(project_root: Path) -> Path:
             "# gencli:repository-port-imports\n\n"
             "class UserRepository(Protocol):\n"
             "    # gencli:repository-port-methods\n"
+        ),
+        module_root / "domain" / "exceptions.py": (
+            "from src.shared.domain.errors import AlreadyExistsError, NotFoundError\n\n"
+            "class UserAlreadyExistsError(AlreadyExistsError):\n"
+            "    pass\n\n"
+            "class UserNotFoundError(NotFoundError):\n"
+            "    pass\n"
         ),
         module_root / "infrastructure" / "persistence" / "repositories.py": (
             "from sqlalchemy import and_, or_, select\n"
@@ -108,6 +117,38 @@ def _run_find_by_script(generated_file: Path) -> subprocess.CompletedProcess[str
             "User",
             "user",
             "nombre:str,email:str,active:bool",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _run_create_script(generated_file: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(CREATE_SCRIPT),
+            str(generated_file),
+            "User",
+            "user",
+            "nombre:str,email:str",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _run_get_script(generated_file: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(GET_SCRIPT),
+            str(generated_file),
+            "User",
+            "user",
+            "nombre:str,email:str",
         ],
         check=False,
         capture_output=True,
@@ -258,3 +299,79 @@ def test_find_by_can_coexist_with_list_and_paginated_commands(tmp_path: Path) ->
         tmp_path / "src" / "modules" / "users" / "domain" / "repositories.py"
     ).read_text(encoding="utf-8")
     assert port.count("from src.shared.domain.pagination import") == 1
+
+
+def test_register_uc_create_is_idempotent_and_commits_in_the_use_case(
+    tmp_path: Path,
+) -> None:
+    generated_file = _write_base_module(tmp_path)
+
+    first_run = _run_create_script(generated_file)
+    assert first_run.returncode == 0, first_run.stderr
+    updated_files = sorted((tmp_path / "src").glob("**/*.py"))
+    first_contents = {path: path.read_text(encoding="utf-8") for path in updated_files}
+    for path, content in first_contents.items():
+        ast.parse(content, filename=str(path))
+
+    second_run = _run_create_script(generated_file)
+    assert second_run.returncode == 0, second_run.stderr
+    assert {
+        path: path.read_text(encoding="utf-8") for path in updated_files
+    } == first_contents
+
+    adapter = (
+        tmp_path
+        / "src/modules/users/infrastructure/persistence/repositories.py"
+    ).read_text(encoding="utf-8")
+    dependencies = (
+        tmp_path / "src/modules/users/infrastructure/http/dependencies.py"
+    ).read_text(encoding="utf-8")
+    assert "async def save" in adapter
+    assert "await self._session.flush()" in adapter
+    assert "await self._session.commit()" not in adapter
+    assert "get_unit_of_work" in dependencies
+
+
+def test_create_and_get_can_be_the_first_composed_use_cases(tmp_path: Path) -> None:
+    generated_file = _write_base_module(tmp_path)
+
+    assert _run_create_script(generated_file).returncode == 0
+    result = _run_get_script(generated_file)
+    assert result.returncode == 0, result.stderr
+
+    router = generated_file.read_text(encoding="utf-8")
+    schemas = (generated_file.parent / "schemas.py").read_text(encoding="utf-8")
+    port = (
+        tmp_path / "src/modules/users/domain/repositories.py"
+    ).read_text(encoding="utf-8")
+    assert '"/"' in router
+    assert '"/{identifier}"' in router
+    assert router.index('"/{identifier}"') > router.index('"/"')
+    assert "UserCreateRequest" in schemas
+    assert "UserGetResponse" in schemas
+    assert "UserAlreadyExistsError" in (
+        tmp_path / "src/modules/users/infrastructure/persistence/repositories.py"
+    ).read_text(encoding="utf-8")
+    assert "async def find_by_id" in port
+
+
+def test_create_get_and_existing_collection_commands_compose(tmp_path: Path) -> None:
+    generated_file = _write_base_module(tmp_path)
+
+    for runner in (
+        _run_script,
+        _run_paginated_script,
+        _run_find_by_script,
+        _run_create_script,
+        _run_get_script,
+    ):
+        result = runner(generated_file)
+        assert result.returncode == 0, result.stderr
+
+    router = generated_file.read_text(encoding="utf-8")
+    main = (tmp_path / "src/main.py").read_text(encoding="utf-8")
+    assert '"/find-by"' in router
+    assert '"/paginated"' in router
+    assert '"/{identifier}"' in router
+    assert main.count("import router as users_router") == 1
+    assert main.count("app.include_router(users_router") == 1

@@ -159,6 +159,60 @@
     ]
   },
   {
+    "name": "hex use case create",
+    "path": "/src/modules/<snake_name>s",
+    "short_option": "-c",
+    "option": "--uc-create",
+    "description": "Genera creacion transaccional y registra sus contratos HTTP y persistencia",
+    "has_props": true,
+    "prop_type_separator": ":",
+    "prop_prop_place": 1,
+    "prop_type_place": 2,
+    "prop_prefix": null,
+    "templates": [
+      {
+        "template": "/hex/uc_create_use_case_template.py",
+        "destination": "<path>/use_cases/create_<snake_name>s.py"
+      },
+      {
+        "template": "/hex/uc_create_controller_template.py",
+        "destination": "<path>/infrastructure/http/controllers/create_<snake_name>s_controller.py",
+        "onDone": "python .gen_cli/scripts/register_uc_create.py <destination> <ent> <snake_name> \"<inline_props>\""
+      },
+      {
+        "template": "/hex/uc_create_test_template.py",
+        "destination": "/tests/unit/modules/<snake_name>s/test_create_<snake_name>s.py"
+      }
+    ]
+  },
+  {
+    "name": "hex use case get",
+    "path": "/src/modules/<snake_name>s",
+    "short_option": "-g",
+    "option": "--uc-get",
+    "description": "Genera consulta individual y registra sus contratos HTTP y persistencia",
+    "has_props": true,
+    "prop_type_separator": ":",
+    "prop_prop_place": 1,
+    "prop_type_place": 2,
+    "prop_prefix": null,
+    "templates": [
+      {
+        "template": "/hex/uc_get_use_case_template.py",
+        "destination": "<path>/use_cases/get_<snake_name>s.py"
+      },
+      {
+        "template": "/hex/uc_get_controller_template.py",
+        "destination": "<path>/infrastructure/http/controllers/get_<snake_name>s_controller.py",
+        "onDone": "python .gen_cli/scripts/register_uc_get.py <destination> <ent> <snake_name> \"<inline_props>\""
+      },
+      {
+        "template": "/hex/uc_get_test_template.py",
+        "destination": "/tests/unit/modules/<snake_name>s/test_get_<snake_name>s.py"
+      }
+    ]
+  },
+  {
     "name": "mvc base",
     "path": "/src/modules/<snake_name>s",
     "short_option": "-m",

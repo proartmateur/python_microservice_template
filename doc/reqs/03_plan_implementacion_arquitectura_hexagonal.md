@@ -178,6 +178,7 @@
 ### Fase 7 — `--uc-create` y `--uc-get`
 
 **Duración:** 2 días
+**Estado:** Completada a nivel de generador y validada con hooks idempotentes y composicion aislada.
 
 **Actividades:**
 

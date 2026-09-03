@@ -89,6 +89,25 @@ def test_uc_find_by_registers_a_single_post_generation_hook() -> None:
     ]
 
 
+def test_uc_create_and_get_register_a_single_post_generation_hook() -> None:
+    architectures = json.loads((PROJECT_ROOT / "arq.json").read_text())
+
+    for option, script in (
+        ("--uc-create", "register_uc_create.py"),
+        ("--uc-get", "register_uc_get.py"),
+    ):
+        architecture = next(item for item in architectures if item["option"] == option)
+        hooks = [
+            template["onDone"]
+            for template in architecture["templates"]
+            if "onDone" in template
+        ]
+        assert hooks == [
+            f"python .gen_cli/scripts/{script} "
+            '<destination> <ent> <snake_name> "<inline_props>"'
+        ]
+
+
 def test_hex_property_blocks_preserve_python_indentation() -> None:
     # GenCLI v2.1 removes the opening parenthesis and one following character.
     expected_prefix = "(     $snake_prop$:"
