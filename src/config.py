@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,14 +16,35 @@ class Settings(BaseSettings):
     DOCS_URL: str = "/docs"
     REDOC_URL: str = "/redoc"
 
+    # --- Origen de Datos del Repositorio ---
+    # "database": usa PostgreSQL + SQLAlchemy (requiere PG_*).
+    # "faker":    usa adaptadores en memoria con datos sintéticos (sin DB).
+    REPOSITORY_DATA_SOURCE: Literal["database", "faker"] = "database"
+
     # --- PostgreSQL (Base Principal) ---
-    PG_USER: str
-    PG_PASSWORD: str
-    PG_HOST: str
+    # Opcionales cuando REPOSITORY_DATA_SOURCE == "faker".
+    PG_USER: str | None = None
+    PG_PASSWORD: str | None = None
+    PG_HOST: str | None = None
     PG_PORT: int = 5432
-    PG_DB: str
+    PG_DB: str | None = None
     PG_SSLMODE: Literal["disable", "require"] = "disable"
     PG_CONNECT_TIMEOUT: int = 10
+
+    @model_validator(mode="after")
+    def _validate_pg_credentials(self) -> "Settings":
+        """Exige credenciales PostgreSQL solo en modo database."""
+        if self.REPOSITORY_DATA_SOURCE == "database":
+            missing = [
+                name
+                for name in ("PG_USER", "PG_PASSWORD", "PG_HOST", "PG_DB")
+                if getattr(self, name) is None
+            ]
+            if missing:
+                raise ValueError(
+                    f"REPOSITORY_DATA_SOURCE=database requiere: {', '.join(missing)}"
+                )
+        return self
 
     @property
     def pg_dsn(self) -> str:
@@ -66,6 +87,8 @@ class Settings(BaseSettings):
     REDIS_URL: str = Field(default="redis://localhost:6379/0")
 
     # --- Paginación ---
+    # Requerido en modo database para firmar cursores; en modo faker se genera
+    # un secret efímero si viene None.
     PAGINATION_CURSOR_SECRET: str | None = Field(default=None, min_length=32)
 
     # --- Búsqueda (Meilisearch) ---
@@ -89,4 +112,4 @@ def get_settings() -> Settings:
     sin importar cuántas veces importes get_settings() en tu código.
     """
     # BaseSettings resuelve campos requeridos desde entorno/.env en runtime.
-    return Settings()  # type: ignore[call-arg]
+    return Settings()

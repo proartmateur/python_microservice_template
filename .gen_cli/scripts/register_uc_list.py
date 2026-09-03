@@ -1,5 +1,8 @@
 """Completa los contratos base después de generar ``--uc-list``."""
 
+# Generated source snippets intentionally retain their readable target formatting.
+# ruff: noqa: E501
+
 from __future__ import annotations
 
 import ast
@@ -234,6 +237,7 @@ def register_list(
 
     port_path = module_root / "domain" / "repositories.py"
     adapter_path = module_root / "infrastructure" / "persistence" / "repositories.py"
+    faker_path = module_root / "infrastructure" / "persistence" / "faker_repositories.py"
     dependencies_path = module_root / "infrastructure" / "http" / "dependencies.py"
     router_path = module_root / "infrastructure" / "http" / "routers.py"
     schemas_path = module_root / "infrastructure" / "http" / "schemas.py"
@@ -248,6 +252,8 @@ def register_list(
             main_path,
         )
     )
+    if faker_path.is_file():
+        documents[faker_path] = faker_path.read_text(encoding="utf-8")
 
     entity_import = (
         f"from src.modules.{plural_name}.domain.entities import {entity_name}Entity"
@@ -312,6 +318,29 @@ def register_list(
             "        ]"
         ),
     )
+
+    # --- Faker adapter ---
+    if faker_path in documents:
+        faker_entity_constructor = ",\n            ".join(
+            [f"id_{snake_name}=item.id_{snake_name}"]
+            + [f"{p}=item.{p}" for p in properties]
+            + ["created_at=item.created_at"]
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-methods",
+            (
+                f"    async def list(self, *, limit: int) -> list[{entity_name}Entity]:\n"
+                f"        active = sorted(\n"
+                f"            self._active(),\n"
+                f"            key=lambda e: (e.created_at, e.id_{snake_name}),\n"
+                f"        )\n"
+                f"        return [\n"
+                f"            {entity_name}Entity(\n            {faker_entity_constructor}\n            )\n"
+                f"            for item in active[:limit]\n"
+                f"        ]"
+            ),
+        )
 
     documents[dependencies_path] = _insert_after_marker(
         documents[dependencies_path],

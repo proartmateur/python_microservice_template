@@ -48,6 +48,46 @@ Ejecutar en modo desarrollo
 uv run poe dev
 ```
 
+### Modo faker (sin base de datos)
+
+Si no tienes PostgreSQL disponible o aún no has modelado el esquema, puedes
+arrancar la API con datos sintéticos en memoria:
+
+1. Crea un `.env` (o exporta las variables) con:
+
+```env
+REPOSITORY_DATA_SOURCE=faker
+```
+
+   No se requieren credenciales `PG_*` en este modo. El
+   `PAGINATION_CURSOR_SECRET` es opcional: si no se define, se genera uno
+   efímero por arranque (suficiente para desarrollo).
+
+2. Arranca como siempre:
+
+```bash
+uv run poe dev
+```
+
+La API funcionará con todos los endpoints CRUD, pero los datos viven solo en
+memoria y se pierden al detener el proceso. **No usar en producción.**
+
+### Modo database (PostgreSQL)
+
+Requiere un `.env` con las credenciales de PostgreSQL:
+
+```env
+REPOSITORY_DATA_SOURCE=database
+PG_USER=...
+PG_PASSWORD=...
+PG_HOST=...
+PG_PORT=5432
+PG_DB=...
+PAGINATION_CURSOR_SECRET=<32+ caracteres>
+```
+
+Es el comportamiento por defecto si no se define `REPOSITORY_DATA_SOURCE`.
+
 ## Documentacion OpenAPI (Swagger)
 
 Con la API ejecutandose en local, puedes abrir:

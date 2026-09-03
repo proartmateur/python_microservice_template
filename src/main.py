@@ -19,6 +19,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     settings = get_settings()
     print(f"🚀 Iniciando {settings.APP_NAME} en modo {settings.ENVIRONMENT}...")
 
+    if settings.REPOSITORY_DATA_SOURCE == "faker":
+        # Modo faker: sin base de datos, adaptadores en memoria.
+        print("🧪 Modo faker: sin base de datos. Datos sintéticos en memoria.")
+        yield
+        print("🛑 Apagando el servicio (modo faker)...")
+        return
+
     # 2. Encendemos el motor de base de datos
     print(f"🔌 Conectando a Postgres en: {settings.PG_HOST}:{settings.PG_PORT}")
     db_manager.init_db(settings.pg_dsn, connect_args=settings.pg_connect_args)

@@ -36,6 +36,7 @@ def register_update(
     project_root = _find_project_root(module_root)
     port_path = module_root / "domain" / "repositories.py"
     adapter_path = module_root / "infrastructure" / "persistence" / "repositories.py"
+    faker_path = module_root / "infrastructure" / "persistence" / "faker_repositories.py"
     dependencies_path = module_root / "infrastructure" / "http" / "dependencies.py"
     router_path = module_root / "infrastructure" / "http" / "routers.py"
     schemas_path = module_root / "infrastructure" / "http" / "schemas.py"
@@ -52,6 +53,8 @@ def register_update(
             main_path,
         )
     )
+    if faker_path.is_file():
+        documents[faker_path] = faker_path.read_text(encoding="utf-8")
 
     type_imports = {
         "UUID": "from uuid import UUID",
@@ -118,6 +121,45 @@ def register_update(
             f"        return {entity_name}Entity(\n                {entity_arguments}\n        )"
         ),
     )
+
+    # --- Faker adapter ---
+    if faker_path in documents:
+        faker_entity_constructor = ",\n                ".join(
+            [f"id_{snake_name}=item.id_{snake_name}"]
+            + [f"{p}=item.{p}" for p in properties]
+            + ["created_at=item.created_at"]
+        )
+        faker_assignments = "\n            ".join(
+            f"item.{p} = values[{p!r}]" for p in properties
+        )
+        unique_fields = [p for p in properties if p in ("email", "nombre", "name", "code", "sku")]
+        unique_check = ""
+        if unique_fields:
+            field_checks = " or ".join(
+                f"any(getattr(e, {f!r}, None) == values[{f!r}] for e in self._store.items if e.id_{snake_name} != identifier)"
+                for f in unique_fields
+            )
+            unique_check = (
+                f"        if {field_checks}:\n"
+                f'            raise {entity_name}AlreadyExistsError("{entity_name} already exists")\n'
+            )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-methods",
+            (
+                f"    async def update(self, identifier: UUID, **values: object) -> {entity_name}Entity:\n"
+                f"        item = None\n"
+                f"        for e in self._active():\n"
+                f"            if e.id_{snake_name} == identifier:\n"
+                f"                item = e\n"
+                f"                break\n"
+                f"        if item is None:\n"
+                f'            raise {entity_name}NotFoundError("{entity_name} not found")\n'
+                f"{unique_check}"
+                f"        {faker_assignments}\n"
+                f"        return {entity_name}Entity(\n                {faker_entity_constructor}\n        )"
+            ),
+        )
 
     use_case_import = f"from src.modules.{plural_name}.use_cases.update_{plural_name} import Update{plural_entity}"
     documents[dependencies_path] = _insert_after_marker(documents[dependencies_path], "# gencli:use-case-imports", use_case_import)

@@ -32,6 +32,10 @@
         "destination": "<path>/infrastructure/persistence/repositories.py"
       },
       {
+        "template": "/hex/repositories_faker_template.py",
+        "destination": "<path>/infrastructure/persistence/faker_repositories.py"
+      },
+      {
         "template": "/hex/dependencies_template.py",
         "destination": "<path>/infrastructure/http/dependencies.py"
       },

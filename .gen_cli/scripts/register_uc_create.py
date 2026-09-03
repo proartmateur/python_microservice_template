@@ -36,6 +36,7 @@ def register_create(
 
     port_path = module_root / "domain" / "repositories.py"
     adapter_path = module_root / "infrastructure" / "persistence" / "repositories.py"
+    faker_path = module_root / "infrastructure" / "persistence" / "faker_repositories.py"
     dependencies_path = module_root / "infrastructure" / "http" / "dependencies.py"
     router_path = module_root / "infrastructure" / "http" / "routers.py"
     schemas_path = module_root / "infrastructure" / "http" / "schemas.py"
@@ -52,6 +53,8 @@ def register_create(
             main_path,
         )
     )
+    if faker_path.is_file():
+        documents[faker_path] = faker_path.read_text(encoding="utf-8")
 
     type_imports = {
         "UUID": "from uuid import UUID",
@@ -131,6 +134,30 @@ def register_create(
             "        return entity"
         ),
     )
+
+    # --- Faker adapter ---
+    if faker_path in documents:
+        unique_fields = [p for p in properties if p in ("email", "nombre", "name", "code", "sku")]
+        unique_check = ""
+        if unique_fields:
+            field_checks = " or ".join(
+                f"any(getattr(e, {f!r}, None) == entity.{f} for e in self._store.items)"
+                for f in unique_fields
+            )
+            unique_check = (
+                f"        if {field_checks}:\n"
+                f'            raise {entity_name}AlreadyExistsError("{entity_name} already exists")\n'
+            )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-methods",
+            (
+                f"    async def save(self, entity: {entity_name}Entity) -> {entity_name}Entity:\n"
+                f"{unique_check}"
+                f"        self._store.items.append(entity)\n"
+                f"        return entity"
+            ),
+        )
 
     use_case_import = (
         f"from src.modules.{plural_name}.use_cases.create_{plural_name} import "

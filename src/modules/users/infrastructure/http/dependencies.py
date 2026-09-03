@@ -1,11 +1,18 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import get_settings
 from src.modules.users.domain.repositories import UserRepository
 from src.modules.users.infrastructure.persistence.repositories import (
     PostgresUserRepository,
 )
-from src.shared.infrastructure.persistence.database import get_db_session
+from src.modules.users.infrastructure.persistence.faker_repositories import (
+    FakerUserRepository,
+    FakerUserStore,
+)
+from src.shared.infrastructure.persistence.database import (
+    get_optional_db_session,
+)
 
 # gencli:use-case-imports
 from src.modules.users.use_cases.delete_users import DeleteUsers
@@ -22,10 +29,28 @@ from src.shared.domain.pagination import CursorCodec
 from src.modules.users.use_cases.list_paginated_users import ListPaginatedUsers
 from src.modules.users.use_cases.list_users import ListUsers
 
+_faker_user_store: FakerUserStore | None = None
+
+
+def get_faker_user_store() -> FakerUserStore:
+    """Provee un store faker singleton para el modulo users."""
+    global _faker_user_store
+    if _faker_user_store is None:
+        _faker_user_store = FakerUserStore()
+    return _faker_user_store
+
+
 def get_user_repository(
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession | None = Depends(get_optional_db_session),
+    store: FakerUserStore = Depends(get_faker_user_store),
 ) -> UserRepository:
-    """Inyecta el adaptador de persistencia del módulo."""
+    """Inyecta el adaptador de persistencia del módulo según el modo configurado."""
+    if get_settings().REPOSITORY_DATA_SOURCE == "faker":
+        return FakerUserRepository(store)
+    if session is None:
+        raise RuntimeError(
+            "La base de datos no ha sido inicializada. Llama a init_db primero."
+        )
     return PostgresUserRepository(session)
 
 

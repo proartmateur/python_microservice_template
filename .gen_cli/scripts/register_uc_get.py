@@ -45,6 +45,7 @@ def register_get(
 
     port_path = module_root / "domain" / "repositories.py"
     adapter_path = module_root / "infrastructure" / "persistence" / "repositories.py"
+    faker_path = module_root / "infrastructure" / "persistence" / "faker_repositories.py"
     dependencies_path = module_root / "infrastructure" / "http" / "dependencies.py"
     router_path = module_root / "infrastructure" / "http" / "routers.py"
     schemas_path = module_root / "infrastructure" / "http" / "schemas.py"
@@ -52,6 +53,8 @@ def register_get(
     documents = _read_required(
         (port_path, adapter_path, dependencies_path, router_path, schemas_path, main_path)
     )
+    if faker_path.is_file():
+        documents[faker_path] = faker_path.read_text(encoding="utf-8")
 
     entity_import = (
         f"from src.modules.{plural_name}.domain.entities import {entity_name}Entity"
@@ -112,6 +115,25 @@ def register_get(
             f"        return {entity_name}Entity(\n                {entity_arguments}\n        )"
         ),
     )
+
+    # --- Faker adapter ---
+    if faker_path in documents:
+        faker_entity_constructor = ",\n                ".join(
+            [f"id_{snake_name}=item.id_{snake_name}"]
+            + [f"{p}=item.{p}" for p in properties]
+            + ["created_at=item.created_at"]
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-methods",
+            (
+                f"    async def find_by_id(self, identifier: UUID) -> {entity_name}Entity | None:\n"
+                f"        for item in self._active():\n"
+                f"            if item.id_{snake_name} == identifier:\n"
+                f"                return {entity_name}Entity(\n                {faker_entity_constructor}\n                )\n"
+                f"        return None"
+            ),
+        )
 
     use_case_import = (
         f"from src.modules.{plural_name}.use_cases.get_{plural_name} import "

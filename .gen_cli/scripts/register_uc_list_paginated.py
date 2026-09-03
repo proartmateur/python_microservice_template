@@ -1,5 +1,8 @@
 """Completa los contratos base después de generar ``--uc-list-paginated``."""
 
+# Generated source snippets intentionally retain their readable target formatting.
+# ruff: noqa: E501
+
 from __future__ import annotations
 
 import sys
@@ -32,6 +35,7 @@ def register_list_paginated(
 
     port_path = module_root / "domain" / "repositories.py"
     adapter_path = module_root / "infrastructure" / "persistence" / "repositories.py"
+    faker_path = module_root / "infrastructure" / "persistence" / "faker_repositories.py"
     dependencies_path = module_root / "infrastructure" / "http" / "dependencies.py"
     router_path = module_root / "infrastructure" / "http" / "routers.py"
     schemas_path = module_root / "infrastructure" / "http" / "schemas.py"
@@ -46,6 +50,8 @@ def register_list_paginated(
             main_path,
         )
     )
+    if faker_path.is_file():
+        documents[faker_path] = faker_path.read_text(encoding="utf-8")
 
     entity_import = (
         f"from src.modules.{plural_name}.domain.entities import {entity_name}Entity"
@@ -120,11 +126,11 @@ def register_list_paginated(
             f"                    {entity_name}Model.created_at > cursor.created_at,\n"
             "                    and_(\n"
             f"                        {entity_name}Model.created_at\n"
-            "                        == cursor.created_at,\n"
+            f"                        == cursor.created_at,\n"
             f"                        {entity_name}Model.id_{snake_name}\n"
-            "                        > cursor.identifier,\n"
+            f"                        > cursor.identifier,\n"
             "                    ),\n"
-            "                )\n"
+            "                ),\n"
             "            )\n"
             "        statement = (\n"
             "            statement.order_by(\n"
@@ -156,6 +162,54 @@ def register_list_paginated(
             "        )"
         ),
     )
+
+    # --- Faker adapter ---
+    if faker_path in documents:
+        faker_entity_constructor = ",\n                ".join(
+            [f"id_{snake_name}=item.id_{snake_name}"]
+            + [f"{p}=item.{p}" for p in properties]
+            + ["created_at=item.created_at"]
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-imports",
+            pagination_import,
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-methods",
+            (
+                f"    async def list_paginated(\n"
+                "        self, *, limit: int, cursor: KeysetCursor | None\n"
+                f"    ) -> CursorPage[{entity_name}Entity]:\n"
+                f"        active = sorted(\n"
+                f"            self._active(),\n"
+                f"            key=lambda e: (e.created_at, e.id_{snake_name}),\n"
+                f"        )\n"
+                f"        if cursor is not None:\n"
+                f"            active = [\n"
+                f"                e for e in active\n"
+                f"                if (e.created_at, e.id_{snake_name}) > (cursor.created_at, cursor.identifier)\n"
+                f"            ]\n"
+                f"        page_rows = active[:limit]\n"
+                f"        has_next = len(active) > limit\n"
+                f"        next_position = None\n"
+                f"        if has_next:\n"
+                f"            last = page_rows[-1]\n"
+                f"            next_position = KeysetCursor(\n"
+                f"                created_at=last.created_at,\n"
+                f"                identifier=last.id_{snake_name},\n"
+                f"            )\n"
+                f"        return CursorPage(\n"
+                f"            items=[\n"
+                f"                {entity_name}Entity(\n                {faker_entity_constructor}\n                )\n"
+                f"                for item in page_rows\n"
+                f"            ],\n"
+                f"            next_position=next_position,\n"
+                f"            has_next=has_next,\n"
+                f"        )"
+            ),
+        )
 
     use_case_import = (
         f"from src.modules.{plural_name}.use_cases.list_paginated_{plural_name} "

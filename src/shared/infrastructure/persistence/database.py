@@ -80,3 +80,24 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
+
+
+async def get_optional_db_session() -> AsyncGenerator[AsyncSession | None, None]:
+    """Como get_db_session pero devuelve None si la DB no está inicializada.
+
+    Útil para providers que bifurcan entre database/faker: FastAPI resuelve
+    todas las dependencias declaradas, así que esta evita el RuntimeError
+    en modo faker.
+    """
+    if db_manager.session_maker is None:
+        yield None
+        return
+
+    async with db_manager.session_maker() as session:
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()

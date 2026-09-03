@@ -15,8 +15,9 @@ generado de forma incremental con **GenCLI** (`--hex` + casos de uso `--uc-*`).
 
 ```bash
 uv sync --dev
-# crea .env con PG_USER, PG_PASSWORD, PG_HOST, PG_PORT, PG_DB
-# y PAGINATION_CURSOR_SECRET (32+ caracteres) si usas paginación
+# crea .env a partir de .env.example
+#   - modo database: completa PG_* y PAGINATION_CURSOR_SECRET (32+ caracteres)
+#   - modo faker:    basta con REPOSITORY_DATA_SOURCE=faker (sin PG)
 poe dev
 ```
 

@@ -29,10 +29,13 @@ def register_delete(generated_file: Path, entity_name: str, snake_name: str, inl
     project_root = _find_project_root(module_root)
     port_path = module_root / "domain" / "repositories.py"
     adapter_path = module_root / "infrastructure" / "persistence" / "repositories.py"
+    faker_path = module_root / "infrastructure" / "persistence" / "faker_repositories.py"
     dependencies_path = module_root / "infrastructure" / "http" / "dependencies.py"
     router_path = module_root / "infrastructure" / "http" / "routers.py"
     main_path = project_root / "src" / "main.py"
     documents = _read_required((port_path, adapter_path, dependencies_path, router_path, main_path))
+    if faker_path.is_file():
+        documents[faker_path] = faker_path.read_text(encoding="utf-8")
 
     exceptions_import = f"from src.modules.{plural_name}.domain.exceptions import {entity_name}NotFoundError"
     model_import = f"from src.modules.{plural_name}.infrastructure.persistence.models import {entity_name}Model"
@@ -44,6 +47,25 @@ def register_delete(generated_file: Path, entity_name: str, snake_name: str, inl
         documents[adapter_path], "# gencli:repository-adapter-methods",
         f"    async def soft_delete(self, identifier: UUID) -> None:\n        statement = select({entity_name}Model).where(\n            {entity_name}Model.id_{snake_name} == identifier,\n            {entity_name}Model.deleted_at.is_(None),\n        )\n        result = await self._session.execute(statement)\n        model = result.scalar_one_or_none()\n        if model is None:\n            raise {entity_name}NotFoundError(\"{entity_name} not found\")\n        model.deleted_at = datetime.now(timezone.utc)\n        await self._session.flush()",
     )
+
+    # --- Faker adapter ---
+    if faker_path in documents:
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-imports",
+            exceptions_import,
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-methods",
+            (
+                f"    async def soft_delete(self, identifier: UUID) -> None:\n"
+                f"        active = self._active()\n"
+                f"        if not any(e.id_{snake_name} == identifier for e in active):\n"
+                f'            raise {entity_name}NotFoundError("{entity_name} not found")\n'
+                f"        self._store.deleted_ids.add(identifier)"
+            ),
+        )
 
     use_case_import = f"from src.modules.{plural_name}.use_cases.delete_{plural_name} import Delete{plural_entity}"
     documents[dependencies_path] = _insert_after_marker(documents[dependencies_path], "# gencli:use-case-imports", use_case_import)

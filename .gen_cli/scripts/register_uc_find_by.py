@@ -36,6 +36,7 @@ def register_find_by(
 
     port_path = module_root / "domain" / "repositories.py"
     adapter_path = module_root / "infrastructure" / "persistence" / "repositories.py"
+    faker_path = module_root / "infrastructure" / "persistence" / "faker_repositories.py"
     dependencies_path = module_root / "infrastructure" / "http" / "dependencies.py"
     router_path = module_root / "infrastructure" / "http" / "routers.py"
     schemas_path = module_root / "infrastructure" / "http" / "schemas.py"
@@ -50,6 +51,8 @@ def register_find_by(
             main_path,
         )
     )
+    if faker_path.is_file():
+        documents[faker_path] = faker_path.read_text(encoding="utf-8")
 
     entity_import = (
         f"from src.modules.{plural_name}.domain.entities import {entity_name}Entity"
@@ -149,7 +152,7 @@ def register_find_by(
             f"                        {entity_name}Model.created_at == cursor.created_at,\n"
             f"                        {entity_name}Model.id_{snake_name} > cursor.identifier,\n"
             "                    ),\n"
-            "                )\n"
+            "                ),\n"
             "            )\n"
             "        statement = statement.order_by(\n"
             f"            {entity_name}Model.created_at, {entity_name}Model.id_{snake_name}\n"
@@ -175,6 +178,69 @@ def register_find_by(
             "        )"
         ),
     )
+
+    # --- Faker adapter ---
+    if faker_path in documents:
+        faker_entity_constructor = ",\n                ".join(
+            [f"id_{snake_name}=item.id_{snake_name}"]
+            + [f"{p}=item.{p}" for p in properties]
+            + ["created_at=item.created_at"]
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-imports",
+            find_by_import,
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-imports",
+            pagination_import,
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-methods",
+            (
+                "    async def find_by(\n"
+                "        self, *, criteria: FindByCriteria, limit: int,\n"
+                "        cursor: KeysetCursor | None, pagination: bool\n"
+                f"    ) -> FindByResult[{entity_name}Entity]:\n"
+                f"        active = sorted(\n"
+                f"            self._active(),\n"
+                f"            key=lambda e: (e.created_at, e.id_{snake_name}),\n"
+                f"        )\n"
+                f"        def _match(e: {entity_name}Entity) -> bool:\n"
+                f"            val = getattr(e, criteria.field, None)\n"
+                f"            if criteria.operator is FindByOperator.EQUALS:\n"
+                f"                return val == criteria.value\n"
+                f"            if criteria.operator is FindByOperator.CONTAINS:\n"
+                f"                return criteria.value in val\n"
+                f"            return str(val).startswith(str(criteria.value))\n"
+                f"        filtered = [e for e in active if _match(e)]\n"
+                f"        if pagination and cursor is not None:\n"
+                f"            filtered = [\n"
+                f"                e for e in filtered\n"
+                f"                if (e.created_at, e.id_{snake_name}) > (cursor.created_at, cursor.identifier)\n"
+                f"            ]\n"
+                f"        take = limit + 1 if pagination else limit\n"
+                f"        page_rows = filtered[:take]\n"
+                f"        has_next = pagination and len(filtered) > take\n"
+                f"        next_position = None\n"
+                f"        if has_next:\n"
+                f"            last = page_rows[-1]\n"
+                f"            next_position = KeysetCursor(\n"
+                f"                created_at=last.created_at,\n"
+                f"                identifier=last.id_{snake_name},\n"
+                f"            )\n"
+                f"        return FindByResult(\n"
+                f"            items=[\n"
+                f"                {entity_name}Entity(\n                {faker_entity_constructor}\n                )\n"
+                f"                for item in page_rows[:limit]\n"
+                f"            ],\n"
+                f"            next_position=next_position,\n"
+                f"            has_next=has_next,\n"
+                f"        )"
+            ),
+        )
 
     use_case_import = (
         f"from src.modules.{plural_name}.use_cases.find_by_{plural_name} import "
