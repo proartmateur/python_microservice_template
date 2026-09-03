@@ -25,6 +25,8 @@ test = "pytest tests/unit -v"
 lint = "ruff check src/ .gen_cli/scripts tests/unit"
 typecheck = "mypy src/ .gen_cli/scripts"
 delete_module = "python .gen_cli/scripts/delete_module.py"
+create_users_table = "python src/modules/users/scripts/create_users_table.py"
+create_users_index = "python src/modules/users/scripts/create_users_index.py"
 
 
 [tool.ruff]

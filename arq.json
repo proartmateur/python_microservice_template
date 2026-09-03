@@ -78,6 +78,14 @@
       {
         "template": "/hex/scripts_init_template.py",
         "destination": "<path>/scripts/__init__.py"
+      },
+      {
+        "template": "/hex/create_table_template.py",
+        "destination": "<path>/scripts/create_<snake_name>s_table.py"
+      },
+      {
+        "template": "/hex/create_index_template.py",
+        "destination": "<path>/scripts/create_<snake_name>s_index.py"
       }
     ]
   },
