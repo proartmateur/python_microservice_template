@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_pg_credentials(self) -> "Settings":
-        """Exige credenciales PostgreSQL solo en modo database."""
+        """Exige credenciales PostgreSQL y pepper de seguridad solo en modo database."""
         if self.REPOSITORY_DATA_SOURCE == "database":
             missing = [
                 name
@@ -43,6 +43,11 @@ class Settings(BaseSettings):
             if missing:
                 raise ValueError(
                     f"REPOSITORY_DATA_SOURCE=database requiere: {', '.join(missing)}"
+                )
+            if len(self.SECURITY_PEPPER) < 32:
+                raise ValueError(
+                    "REPOSITORY_DATA_SOURCE=database requiere SECURITY_PEPPER "
+                    "de al menos 32 caracteres."
                 )
         return self
 
@@ -90,6 +95,12 @@ class Settings(BaseSettings):
     # Requerido en modo database para firmar cursores; en modo faker se genera
     # un secret efímero si viene None.
     PAGINATION_CURSOR_SECRET: str | None = Field(default=None, min_length=32)
+
+    # --- Seguridad (API Keys) ---
+    # Pepper para HMAC-SHA256 de las API keys. Mínimo 32 bytes.
+    # Requerido cuando REPOSITORY_DATA_SOURCE=database.
+    # En modo faker se permite un pepper efímero si está vacío.
+    SECURITY_PEPPER: str = ""
 
     # --- Búsqueda (Meilisearch) ---
     MEILISEARCH_URL: str = Field(default="http://localhost:7700")
