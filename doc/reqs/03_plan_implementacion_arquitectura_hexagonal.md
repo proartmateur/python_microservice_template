@@ -21,7 +21,7 @@
 | ID | Decisión | Resolución para este plan |
 |---|---|---|
 | D-01 | Límite transaccional | Use cases llaman `uow.commit()` explícitamente al terminar una operación de escritura; repositorios solo hacen `flush()`. Se corrige la contradicción actual de REQS-01 antes de programar. |
-| D-02 | `isPhisical` → `is_physical` | Cambio interno obligatorio. Si el API tiene consumidores externos, se conserva temporalmente el alias Pydantic antes de eliminarlo en una versión de API posterior. |
+| D-02 | `isPhisical` → `is_physical` | Cambio interno obligatorio. Los módulos nuevos exponen solo `is_physical`; no se genera alias Pydantic. La compatibilidad, si un consumidor heredado la requiere, permanece fuera del generador. |
 | D-03 | Edición de archivos existentes | Scripts Python en `.gen_cli/scripts/`, con marcadores `gencli:*`, edición determinista, validación `ast.parse` e idempotencia. |
 | D-04 | Rutas de listado coexistentes | `GET /` para `--uc-list`; `GET /paginated` para `--uc-list-paginated`; `POST /find-by` para `--uc-find-by`. |
 
@@ -218,18 +218,21 @@
 ### Fase 9 — Validación cruzada con `products`
 
 **Duración:** 2 días
+**Estado:** Completada. La regresión ejecuta `./gen` en un proyecto temporal aislado para `Product` con `name:str,user:UUID,is_physical:bool`, seguido de todos los comandos `--uc-*`. Verifica composición idempotente, tipos y mapeos, orden de rutas, filtros de eliminación lógica y ausencia de `OFFSET`.
 
 **Actividades:**
 
-- Aplicar `--hex` y los comandos de caso de uso a `products`, sin editar archivos estructurales a mano.
+- Aplicar `--hex` y los comandos de caso de uso a un módulo Product aislado, sin editar archivos estructurales a mano ni modificar el módulo heredado `src/modules/products`.
 - Resolver D-02 para `is_physical` y actualizar tests/contrato de acuerdo con la decisión.
 - Verificar que tipos UUID, booleanos y campos de ownership funcionan en generación, búsqueda y paginación.
 - Corregir defectos de generalización en templates y scripts descubiertos con el segundo módulo.
 
 **Entregables:**
 
-- `products` generado/migrado con el mismo flujo GenCLI.
+- Smoke test aislado de `Product` con el mismo flujo GenCLI.
 - Correcciones de plantillas genéricas y pruebas de regresión.
+
+**Compatibilidad:** El generador nuevo usa `is_physical` tanto internamente como en su API. No genera el alias heredado `isPhisical`: conservarlo propagaría una errata a módulos nuevos. El módulo legado `src/modules/products` no se modifica en esta fase; cualquier adaptación de compatibilidad queda limitada a consumidores heredados fuera del generador.
 
 **Salida:** Dos módulos con propiedades distintas son generados mediante exactamente los mismos comandos, sin parches manuales de arquitectura.
 

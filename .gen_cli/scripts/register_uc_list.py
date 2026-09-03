@@ -18,9 +18,36 @@ class MutationError(RuntimeError):
 def _insert_after_marker(document: str, marker: str, addition: str) -> str:
     if addition in document:
         return document
+    addition_imports = [
+        line.strip() for line in addition.splitlines() if line.strip()
+    ]
+    if addition_imports and all(line.startswith("from ") for line in addition_imports):
+        document_imports = [line.strip() for line in document.splitlines()]
+        if all(
+            _import_is_present(document_imports, addition_import)
+            for addition_import in addition_imports
+        ):
+            return document
     if marker not in document:
         raise MutationError(f"No se encontró el marcador requerido: {marker}")
     return document.replace(marker, f"{marker}\n{addition}", 1)
+
+
+def _import_is_present(document_lines: list[str], requested_import: str) -> bool:
+    """Return whether an equivalent or broader ``from`` import already exists."""
+    pattern = re.compile(r"from (?P<module>[\w.]+) import (?P<names>[\w, ]+)$")
+    requested = pattern.fullmatch(requested_import)
+    if requested is None:
+        return False
+    requested_names = {name.strip() for name in requested["names"].split(",")}
+    for line in document_lines:
+        existing = pattern.fullmatch(line)
+        if existing is None or existing["module"] != requested["module"]:
+            continue
+        existing_names = {name.strip() for name in existing["names"].split(",")}
+        if requested_names <= existing_names:
+            return True
+    return False
 
 
 def _parse_properties(inline_properties: str) -> list[str]:
@@ -110,7 +137,7 @@ def _deduplicate_from_imports(document: str) -> str:
             output.append(line)
             continue
         module = match["module"]
-        names = [name.strip() for name in match["names"].split(",")]
+        names = sorted(name.strip() for name in match["names"].split(","))
         if module not in imports_by_module:
             imports_by_module[module] = names
             first_import_line[module] = len(output)
@@ -118,6 +145,7 @@ def _deduplicate_from_imports(document: str) -> str:
             continue
         known_names = imports_by_module[module]
         known_names.extend(name for name in names if name not in known_names)
+        known_names.sort()
         output[first_import_line[module]] = (
             f"from {module} import {', '.join(known_names)}"
         )
