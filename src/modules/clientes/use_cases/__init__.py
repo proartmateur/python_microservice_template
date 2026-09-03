@@ -1,0 +1,1 @@
+"""Módulo generado por GenCLI."""

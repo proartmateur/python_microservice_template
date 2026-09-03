@@ -130,13 +130,16 @@ def register_update(
             + ["created_at=item.created_at"]
         )
         faker_assignments = "\n        ".join(
-            f"item.{p} = values[{p!r}]" for p in properties
+            f"item.{p} = cast({property_types[p]!r}, values[{p!r}])"
+            for p in properties
         )
         unique_fields = [p for p in properties if p in ("email", "nombre", "name", "code", "sku")]
         unique_check = ""
         if unique_fields:
             field_checks = " or ".join(
-                f"any(getattr(e, {f!r}, None) == values[{f!r}] for e in self._store.items if e.id_{snake_name} != identifier)"
+                f"any(getattr(e, {f!r}, None) == values[{f!r}]\n"
+                f"            for e in self._store.items\n"
+                f"            if e.id_{snake_name} != identifier)"
                 for f in unique_fields
             )
             unique_check = (
@@ -152,6 +155,11 @@ def register_update(
             documents[faker_path],
             "# gencli:faker-repository-imports",
             "from uuid import UUID",
+        )
+        documents[faker_path] = _insert_after_marker(
+            documents[faker_path],
+            "# gencli:faker-repository-imports",
+            "from typing import cast",
         )
         documents[faker_path] = _insert_after_marker(
             documents[faker_path],

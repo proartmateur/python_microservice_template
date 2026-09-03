@@ -49,6 +49,10 @@ class Faker<ent>Repository(<ent>Repository):
         self._store = store
 
     def _active(self) -> list[<ent>Entity]:
-        return [e for e in self._store.items if e.id_<snake_name> not in self._store.deleted_ids]
+        return [
+            e
+            for e in self._store.items
+            if e.id_<snake_name> not in self._store.deleted_ids
+        ]
 
     # gencli:faker-repository-methods

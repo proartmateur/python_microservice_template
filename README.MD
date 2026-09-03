@@ -10,6 +10,7 @@ generado de forma incremental con **GenCLI** (`--hex` + casos de uso `--uc-*`).
 - Pruebas y TDD [pruebas.md](doc/pruebas.md)
 - Calidad del código [calidad.md](doc/calidad.md)
 - Migraciones de base de datos [migraciones_db.md](doc/migraciones_db.md)
+- Variables de entorno para DevOps [variables_entorno.md](doc/variables_entorno.md)
 
 ## Quickstart
 

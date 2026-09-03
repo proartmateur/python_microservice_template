@@ -213,7 +213,7 @@ def register_find_by(
                 f"            if criteria.operator is FindByOperator.EQUALS:\n"
                 f"                return val == criteria.value\n"
                 f"            if criteria.operator is FindByOperator.CONTAINS:\n"
-                f"                return criteria.value in val\n"
+                f"                return val is not None and criteria.value in val\n"
                 f"            return str(val).startswith(str(criteria.value))\n"
                 f"        filtered = [e for e in active if _match(e)]\n"
                 f"        if pagination and cursor is not None:\n"

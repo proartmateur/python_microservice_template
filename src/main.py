@@ -11,6 +11,8 @@ from src.shared.infrastructure.http.error_handlers import register_error_handler
 from src.config import get_settings
 
 # gencli:router-imports
+from src.modules.products.infrastructure.http.routers import router as products_router
+from src.modules.clientes.infrastructure.http.routers import router as clientes_router
 from src.modules.users.infrastructure.http.routers import router as users_router
 
 @asynccontextmanager
@@ -72,6 +74,8 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
 
     # gencli:router-includes
+    app.include_router(products_router, prefix="/api/v1")
+    app.include_router(clientes_router, prefix="/api/v1")
     app.include_router(users_router, prefix="/api/v1")
 
     @app.get(

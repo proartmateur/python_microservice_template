@@ -27,6 +27,10 @@ def _prepare_isolated_project(project_root: Path) -> None:
         PROJECT_ROOT / ".gen_cli" / "scripts",
         project_root / ".gen_cli" / "scripts",
     )
+    shutil.copytree(
+        PROJECT_ROOT / ".gen_cli" / "templates",
+        project_root / ".gen_cli" / "templates",
+    )
 
     main_path = project_root / "src" / "main.py"
     main_path.parent.mkdir(parents=True)
