@@ -34,6 +34,16 @@ def _parse_properties(inline_properties: str) -> list[str]:
     return properties
 
 
+def _parse_property_types(inline_properties: str) -> dict[str, str]:
+    property_types: dict[str, str] = {}
+    for item in filter(None, (part.strip() for part in inline_properties.split(","))):
+        name, separator, property_type = item.partition(":")
+        if not separator or not name.isidentifier() or not property_type.strip():
+            raise MutationError(f"Propiedad inválida: {item!r}")
+        property_types[name] = property_type.strip()
+    return property_types
+
+
 def _find_project_root(module_root: Path) -> Path:
     for candidate in (module_root, *module_root.parents):
         if (candidate / "src" / "main.py").is_file():
@@ -91,6 +101,7 @@ def register_list(
     inline_properties: str,
 ) -> None:
     properties = _parse_properties(inline_properties)
+    property_types = _parse_property_types(inline_properties)
     module_root = _find_module_root(generated_use_case.resolve())
     plural_name = f"{snake_name}s"
     plural_entity = f"{entity_name}s"
@@ -100,9 +111,17 @@ def register_list(
     adapter_path = module_root / "infrastructure" / "persistence" / "repositories.py"
     dependencies_path = module_root / "infrastructure" / "http" / "dependencies.py"
     router_path = module_root / "infrastructure" / "http" / "routers.py"
+    schemas_path = module_root / "infrastructure" / "http" / "schemas.py"
     main_path = project_root / "src" / "main.py"
     documents = _read_required(
-        (port_path, adapter_path, dependencies_path, router_path, main_path)
+        (
+            port_path,
+            adapter_path,
+            dependencies_path,
+            router_path,
+            schemas_path,
+            main_path,
+        )
     )
 
     entity_import = (
@@ -143,7 +162,7 @@ def register_list(
     documents[adapter_path] = _insert_after_marker(
         documents[adapter_path],
         "# gencli:repository-adapter-imports",
-        f"from sqlalchemy import select\n{entity_import}\n{model_import}",
+        f"{entity_import}\n{model_import}",
     )
     documents[adapter_path] = _insert_after_marker(
         documents[adapter_path],
@@ -184,6 +203,77 @@ def register_list(
             "    ),\n"
             f") -> List{plural_entity}:\n"
             f"    return List{plural_entity}(repository)"
+        ),
+    )
+
+    documents[schemas_path] = _insert_after_marker(
+        documents[schemas_path],
+        "# gencli:schema-imports",
+        (
+            "from datetime import datetime\n"
+            "from uuid import UUID\n\n"
+            "from pydantic import BaseModel\n\n"
+            f"{entity_import}"
+        ),
+    )
+    documents[schemas_path] = _insert_after_marker(
+        documents[schemas_path],
+        "# gencli:schema-models",
+        (
+            f"class {entity_name}Response(BaseModel):\n"
+            "    id: UUID\n"
+            + "".join(
+                f"    {property_name}: {property_types[property_name]}\n"
+                for property_name in properties
+            )
+            + "    created_at: datetime"
+        ),
+    )
+    response_arguments = ",\n        ".join(
+        [f"id=entity.id_{snake_name}"]
+        + [f"{property_name}=entity.{property_name}" for property_name in properties]
+        + ["created_at=entity.created_at"]
+    )
+    documents[schemas_path] = _insert_after_marker(
+        documents[schemas_path],
+        "# gencli:schema-mappers",
+        (
+            f"def to_{snake_name}_response(\n"
+            f"    entity: {entity_name}Entity,\n"
+            f") -> {entity_name}Response:\n"
+            f"    return {entity_name}Response(\n"
+            f"        {response_arguments}\n"
+            "    )"
+        ),
+    )
+
+    documents[router_path] = _insert_after_marker(
+        documents[router_path],
+        "# gencli:router-imports",
+        (
+            f"from src.modules.{plural_name}.infrastructure.http.controllers."
+            f"list_{plural_name}_controller import list_{plural_name}_controller\n"
+            f"from src.modules.{plural_name}.infrastructure.http.dependencies "
+            f"import get_list_{plural_name}\n"
+            f"from src.modules.{plural_name}.infrastructure.http.schemas "
+            f"import {entity_name}Response\n"
+            f"from src.modules.{plural_name}.use_cases.list_{plural_name} "
+            f"import List{plural_entity}"
+        ),
+    )
+    documents[router_path] = _insert_after_marker(
+        documents[router_path],
+        "# gencli:routes",
+        (
+            f'@router.get("/", response_model=list[{entity_name}Response])\n'
+            f"async def list_{plural_name}(\n"
+            "    use_case: Annotated[\n"
+            f"        List{plural_entity},\n"
+            f"        Depends(get_list_{plural_name}),\n"
+            "    ],\n"
+            "    limit: Annotated[int, Query(ge=1, le=100)] = 50,\n"
+            f") -> list[{entity_name}Response]:\n"
+            f"    return await list_{plural_name}_controller(use_case, limit=limit)"
         ),
     )
 

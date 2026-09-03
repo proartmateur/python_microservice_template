@@ -14,5 +14,9 @@ class DomainValidationError(DomainError):
     """Los datos son sintácticamente válidos, pero violan una regla de negocio."""
 
 
+class InvalidCursorError(DomainValidationError):
+    """El cursor de paginación no se puede verificar o interpretar."""
+
+
 class PermissionDeniedError(DomainError):
     """El actor autenticado no puede realizar la operación solicitada."""

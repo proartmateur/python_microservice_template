@@ -6,6 +6,9 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_list.py"
+PAGINATED_SCRIPT = (
+    PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_list_paginated.py"
+)
 
 
 def _write_base_module(project_root: Path) -> Path:
@@ -19,6 +22,7 @@ def _write_base_module(project_root: Path) -> Path:
             "    # gencli:repository-port-methods\n"
         ),
         module_root / "infrastructure" / "persistence" / "repositories.py": (
+            "from sqlalchemy import and_, or_, select\n"
             "from sqlalchemy.ext.asyncio import AsyncSession\n\n"
             "from src.modules.users.domain.repositories import UserRepository\n\n"
             "# gencli:repository-adapter-imports\n\n"
@@ -40,10 +44,16 @@ def _write_base_module(project_root: Path) -> Path:
             "    raise NotImplementedError\n\n"
             "# gencli:use-case-providers\n"
         ),
-        module_root
-        / "infrastructure"
-        / "http"
-        / "routers.py": "from fastapi import APIRouter\n\nrouter = APIRouter()\n",
+        module_root / "infrastructure" / "http" / "routers.py": (
+            "from typing import Annotated\n\n"
+            "from fastapi import APIRouter, Depends, Query\n\n"
+            "# gencli:router-imports\n\n"
+            "router = APIRouter()\n\n"
+            "# gencli:routes\n"
+        ),
+        module_root / "infrastructure" / "http" / "schemas.py": (
+            "# gencli:schema-imports\n# gencli:schema-models\n# gencli:schema-mappers\n"
+        ),
         project_root / "src" / "main.py": (
             "# gencli:router-imports\n\n"
             "def create_app() -> None:\n"
@@ -62,6 +72,22 @@ def _run_script(use_case_path: Path) -> subprocess.CompletedProcess[str]:
             sys.executable,
             str(SCRIPT),
             str(use_case_path),
+            "User",
+            "user",
+            "nombre:str,email:str",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _run_paginated_script(generated_file: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(PAGINATED_SCRIPT),
+            str(generated_file),
             "User",
             "user",
             "nombre:str,email:str",
@@ -110,3 +136,50 @@ def test_register_uc_list_fails_without_a_required_marker(tmp_path: Path) -> Non
     assert result.returncode == 1
     assert "marcador requerido" in result.stderr
     assert port_path.read_text(encoding="utf-8") == broken_content
+
+
+def test_register_uc_list_paginated_is_idempotent_and_uses_keyset(
+    tmp_path: Path,
+) -> None:
+    generated_file = _write_base_module(tmp_path)
+
+    first_run = _run_paginated_script(generated_file)
+    assert first_run.returncode == 0, first_run.stderr
+
+    updated_files = sorted((tmp_path / "src").glob("**/*.py"))
+    first_contents = {path: path.read_text(encoding="utf-8") for path in updated_files}
+    for path, content in first_contents.items():
+        ast.parse(content, filename=str(path))
+
+    second_run = _run_paginated_script(generated_file)
+    assert second_run.returncode == 0, second_run.stderr
+    assert {
+        path: path.read_text(encoding="utf-8") for path in updated_files
+    } == first_contents
+
+    adapter = (
+        tmp_path
+        / "src"
+        / "modules"
+        / "users"
+        / "infrastructure"
+        / "persistence"
+        / "repositories.py"
+    ).read_text(encoding="utf-8")
+    assert ".limit(limit + 1)" in adapter
+    assert ".offset(" not in adapter
+
+
+def test_list_and_paginated_commands_can_extend_the_same_module(tmp_path: Path) -> None:
+    generated_file = _write_base_module(tmp_path)
+
+    assert _run_script(generated_file).returncode == 0
+    result = _run_paginated_script(generated_file)
+
+    assert result.returncode == 0, result.stderr
+    router = generated_file.read_text(encoding="utf-8")
+    schemas = (generated_file.parent / "schemas.py").read_text(encoding="utf-8")
+    assert '"/paginated"' in router
+    assert '"/"' in router
+    assert "UserResponse" in schemas
+    assert "UserPaginatedResponse" in schemas

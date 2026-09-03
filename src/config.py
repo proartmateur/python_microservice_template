@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     RABBITMQ_URL: str = Field(default="amqp://guest:guest@localhost:5672/")
     REDIS_URL: str = Field(default="redis://localhost:6379/0")
 
+    # --- Paginación ---
+    PAGINATION_CURSOR_SECRET: str | None = Field(default=None, min_length=32)
+
     # --- Búsqueda (Meilisearch) ---
     MEILISEARCH_URL: str = Field(default="http://localhost:7700")
     MEILISEARCH_MASTER_KEY: str | None = None

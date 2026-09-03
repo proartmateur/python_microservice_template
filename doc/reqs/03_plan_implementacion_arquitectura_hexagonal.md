@@ -134,6 +134,7 @@
 ### Fase 5 — `--uc-list-paginated` con cursor/keyset
 
 **Duración:** 2 días
+**Estado:** Completada.
 
 **Actividades:**
 

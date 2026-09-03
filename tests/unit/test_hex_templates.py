@@ -20,7 +20,15 @@ def test_hex_architecture_registers_the_base_templates() -> None:
     assert "<path>/infrastructure/persistence/models.py" in destinations
     assert "<path>/infrastructure/persistence/repositories.py" in destinations
     assert "<path>/infrastructure/http/dependencies.py" in destinations
-    assert all("routers.py" not in destination for destination in destinations)
+    assert "<path>/infrastructure/http/routers.py" in destinations
+    assert "<path>/infrastructure/http/schemas.py" in destinations
+
+    routers_template = next(
+        template
+        for template in hex_architecture["templates"]
+        if template["destination"] == "<path>/infrastructure/http/routers.py"
+    )
+    assert "onDone" not in routers_template
 
 
 def test_hex_templates_expose_mutation_markers() -> None:
@@ -38,13 +46,28 @@ def test_uc_list_registers_a_single_post_generation_hook() -> None:
     architectures = json.loads((PROJECT_ROOT / "arq.json").read_text())
     uc_list = next(item for item in architectures if item["option"] == "--uc-list")
     hooks = [
-        template["onDone"]
-        for template in uc_list["templates"]
-        if "onDone" in template
+        template["onDone"] for template in uc_list["templates"] if "onDone" in template
     ]
 
     assert hooks == [
         "python .gen_cli/scripts/register_uc_list.py "
+        '<destination> <ent> <snake_name> "<inline_props>"'
+    ]
+
+
+def test_uc_list_paginated_registers_a_single_post_generation_hook() -> None:
+    architectures = json.loads((PROJECT_ROOT / "arq.json").read_text())
+    uc_list_paginated = next(
+        item for item in architectures if item["option"] == "--uc-list-paginated"
+    )
+    hooks = [
+        template["onDone"]
+        for template in uc_list_paginated["templates"]
+        if "onDone" in template
+    ]
+
+    assert hooks == [
+        "python .gen_cli/scripts/register_uc_list_paginated.py "
         '<destination> <ent> <snake_name> "<inline_props>"'
     ]
 

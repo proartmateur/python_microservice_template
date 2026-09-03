@@ -43,7 +43,9 @@ src/modules/users/
 │   │   ├── __init__.py
 │   │   ├── controllers/
 │   │   │   └── __init__.py
-│   │   └── dependencies.py   # Providers que se amplían con cada --uc-*
+│   │   ├── dependencies.py   # Providers que se amplían con cada --uc-*
+│   │   ├── routers.py        # Router vacío con marcadores; aún no se registra
+│   │   └── schemas.py        # Schemas vacíos con marcadores
 │   └── persistence/
 │       ├── __init__.py
 │       ├── models.py
@@ -51,7 +53,9 @@ src/modules/users/
 └── scripts/
 ```
 
-No se registra ningún router en `main.py` hasta que el módulo tenga al menos un caso de uso HTTP.
+`--hex` crea un router y schemas vacíos para que los comandos incrementales puedan
+mutarlos sin sobrescribir archivos. No hay endpoints y el router no se registra en
+`main.py` hasta que el módulo tenga al menos un caso de uso HTTP.
 
 ### 2.2 Comandos por caso de uso `--uc-*`
 

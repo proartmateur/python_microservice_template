@@ -36,6 +36,14 @@
         "destination": "<path>/infrastructure/http/dependencies.py"
       },
       {
+        "template": "/hex/router_base_template.py",
+        "destination": "<path>/infrastructure/http/routers.py"
+      },
+      {
+        "template": "/hex/schemas_base_template.py",
+        "destination": "<path>/infrastructure/http/schemas.py"
+      },
+      {
         "template": "/hex/__init__.py",
         "destination": "<path>/__init__.py"
       },
@@ -87,20 +95,39 @@
       },
       {
         "template": "/hex/uc_list_controller_template.py",
-        "destination": "<path>/infrastructure/http/controllers/list_<snake_name>s_controller.py"
-      },
-      {
-        "template": "/hex/uc_list_schemas_template.py",
-        "destination": "<path>/infrastructure/http/schemas.py"
-      },
-      {
-        "template": "/hex/uc_list_router_template.py",
-        "destination": "<path>/infrastructure/http/routers.py",
+        "destination": "<path>/infrastructure/http/controllers/list_<snake_name>s_controller.py",
         "onDone": "python .gen_cli/scripts/register_uc_list.py <destination> <ent> <snake_name> \"<inline_props>\""
       },
       {
         "template": "/hex/uc_list_test_template.py",
         "destination": "/tests/unit/modules/<snake_name>s/test_list_<snake_name>s.py"
+      }
+    ]
+  },
+  {
+    "name": "hex use case list paginated",
+    "path": "/src/modules/<snake_name>s",
+    "short_option": "-p",
+    "option": "--uc-list-paginated",
+    "description": "Genera listado keyset con cursor firmado, sin OFFSET",
+    "has_props": true,
+    "prop_type_separator": ":",
+    "prop_prop_place": 1,
+    "prop_type_place": 2,
+    "prop_prefix": null,
+    "templates": [
+      {
+        "template": "/hex/uc_list_paginated_use_case_template.py",
+        "destination": "<path>/use_cases/list_paginated_<snake_name>s.py"
+      },
+      {
+        "template": "/hex/uc_list_paginated_controller_template.py",
+        "destination": "<path>/infrastructure/http/controllers/list_paginated_<snake_name>s_controller.py",
+        "onDone": "python .gen_cli/scripts/register_uc_list_paginated.py <destination> <ent> <snake_name> \"<inline_props>\""
+      },
+      {
+        "template": "/hex/uc_list_paginated_test_template.py",
+        "destination": "/tests/unit/modules/<snake_name>s/test_list_paginated_<snake_name>s.py"
       }
     ]
   },
