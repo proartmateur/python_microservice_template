@@ -1,5 +1,75 @@
 [
   {
+    "name": "hex base",
+    "path": "/src/modules/<snake_name>s",
+    "short_option": "-x",
+    "option": "--hex",
+    "description": "Genera el núcleo hexagonal de un módulo sin casos de uso ni rutas HTTP",
+    "has_props": true,
+    "prop_type_separator": ":",
+    "prop_prop_place": 1,
+    "prop_type_place": 2,
+    "prop_prefix": null,
+    "templates": [
+      {
+        "template": "/hex/entities_template.py",
+        "destination": "<path>/domain/entities.py"
+      },
+      {
+        "template": "/hex/repositories_port_template.py",
+        "destination": "<path>/domain/repositories.py"
+      },
+      {
+        "template": "/hex/exceptions_template.py",
+        "destination": "<path>/domain/exceptions.py"
+      },
+      {
+        "template": "/hex/models_template.py",
+        "destination": "<path>/infrastructure/persistence/models.py"
+      },
+      {
+        "template": "/hex/repositories_adapter_template.py",
+        "destination": "<path>/infrastructure/persistence/repositories.py"
+      },
+      {
+        "template": "/hex/dependencies_template.py",
+        "destination": "<path>/infrastructure/http/dependencies.py"
+      },
+      {
+        "template": "/hex/__init__.py",
+        "destination": "<path>/__init__.py"
+      },
+      {
+        "template": "/hex/__init__.py",
+        "destination": "<path>/domain/__init__.py"
+      },
+      {
+        "template": "/hex/__init__.py",
+        "destination": "<path>/use_cases/__init__.py"
+      },
+      {
+        "template": "/hex/__init__.py",
+        "destination": "<path>/infrastructure/__init__.py"
+      },
+      {
+        "template": "/hex/__init__.py",
+        "destination": "<path>/infrastructure/http/__init__.py"
+      },
+      {
+        "template": "/hex/__init__.py",
+        "destination": "<path>/infrastructure/http/controllers/__init__.py"
+      },
+      {
+        "template": "/hex/__init__.py",
+        "destination": "<path>/infrastructure/persistence/__init__.py"
+      },
+      {
+        "template": "/hex/scripts_init_template.py",
+        "destination": "<path>/scripts/__init__.py"
+      }
+    ]
+  },
+  {
     "name": "mvc base",
     "path": "/src/modules/<snake_name>s",
     "short_option": "-m",

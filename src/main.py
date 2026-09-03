@@ -7,11 +7,13 @@ from fastapi import FastAPI
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.shared.infrastructure.persistence.database import db_manager
+from src.shared.infrastructure.http.error_handlers import register_error_handlers
 from src.config import get_settings
 from src.modules.users.infrastructure.http.routers import router as users_router
-
-from src.modules.cosas.infrastructure.http.routers import router as cosas_router
 from src.modules.products.infrastructure.http.routers import router as products_router
+
+# gencli:router-imports
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
@@ -33,7 +35,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
             if attempt == max_retries:
                 raise RuntimeError(
                     "No se pudo establecer conexion a PostgreSQL tras varios intentos. "
-                    "Revisa PG_HOST/PG_PORT/PG_DB, credenciales, SSL y estado del servidor."
+                    "Revisa PG_HOST/PG_PORT/PG_DB, credenciales, SSL y estado "
+                    "del servidor."
                 ) from exc
             print(
                 f"⚠️ Intento {attempt}/{max_retries} de conexion fallido. "
@@ -59,13 +62,15 @@ def create_app() -> FastAPI:
         docs_url=settings.DOCS_URL,
         redoc_url=settings.REDOC_URL,
         openapi_url=settings.OPENAPI_URL,
-        lifespan=lifespan
+        lifespan=lifespan,
     )
+
+    register_error_handlers(app)
 
     app.include_router(users_router, prefix="/api/v1")
     app.include_router(products_router, prefix="/api/v1")
+    # gencli:router-includes
 
-    app.include_router(cosas_router, prefix="/api/v1")
     @app.get(
         "/health",
         tags=["System"],

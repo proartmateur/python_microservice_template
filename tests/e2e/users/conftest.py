@@ -4,8 +4,6 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from src.main import create_app
-
 
 @pytest.fixture(scope="session")
 def client() -> Generator[TestClient, None, None]:
@@ -13,8 +11,8 @@ def client() -> Generator[TestClient, None, None]:
     if os.getenv("RUN_E2E_USERS") != "1":
         pytest.skip("Define RUN_E2E_USERS=1 para ejecutar los e2e de users.")
 
+    from src.main import create_app
+
     app = create_app()
     with TestClient(app) as test_client:
         yield test_client
-
-

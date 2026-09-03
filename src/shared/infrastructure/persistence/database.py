@@ -1,7 +1,12 @@
 from typing import AsyncGenerator
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -16,7 +21,9 @@ class DatabaseManager:
         self.engine: AsyncEngine | None = None
         self.session_maker: async_sessionmaker[AsyncSession] | None = None
 
-    def init_db(self, db_url: str, *, connect_args: dict[str, object] | None = None) -> None:
+    def init_db(
+        self, db_url: str, *, connect_args: dict[str, object] | None = None
+    ) -> None:
         """Inicializa el pool de conexiones. Se llama al arrancar FastAPI."""
         # pool_pre_ping ayuda cuando el servidor cierra conexiones inactivas.
         self.engine = create_async_engine(
@@ -40,7 +47,9 @@ class DatabaseManager:
     async def ping(self) -> None:
         """Valida conectividad al motor con una consulta minima."""
         if self.engine is None:
-            raise RuntimeError("La base de datos no ha sido inicializada. Llama a init_db primero.")
+            raise RuntimeError(
+                "La base de datos no ha sido inicializada. Llama a init_db primero."
+            )
 
         async with self.engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -59,7 +68,9 @@ db_manager = DatabaseManager()
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Generador que provee una sesión única por cada petición HTTP."""
     if db_manager.session_maker is None:
-        raise RuntimeError("La base de datos no ha sido inicializada. Llama a init_db primero.")
+        raise RuntimeError(
+            "La base de datos no ha sido inicializada. Llama a init_db primero."
+        )
 
     async with db_manager.session_maker() as session:
         try:

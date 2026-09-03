@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     # --- Configuración Base ---
     APP_NAME: str = "Microservicio con GenCLI"
@@ -37,6 +38,7 @@ class Settings(BaseSettings):
         args: dict[str, object] = {"timeout": float(self.PG_CONNECT_TIMEOUT)}
         if self.PG_SSLMODE == "require":
             import ssl as _ssl
+
             args["ssl"] = _ssl.create_default_context()
         else:
             # Deshabilitar explícitamente la negociación SSL.
@@ -46,32 +48,35 @@ class Settings(BaseSettings):
         return args
 
     # --- SQL Server (Integración) ---
-    MS_USER: str
-    MS_PASSWORD: str
-    MS_HOST: str
+    MS_USER: str | None = None
+    MS_PASSWORD: str | None = None
+    MS_HOST: str | None = None
     MS_PORT: int = 1433
-    MS_DB: str
-    
+    MS_DB: str | None = None
+
     @property
     def ms_dsn(self) -> str:
         """Construye la URL de conexión para SQL Server (Async)"""
+        if not all((self.MS_USER, self.MS_PASSWORD, self.MS_HOST, self.MS_DB)):
+            raise RuntimeError("La configuración de SQL Server está incompleta.")
         return f"mssql+aioodbc://{self.MS_USER}:{self.MS_PASSWORD}@{self.MS_HOST}:{self.MS_PORT}/{self.MS_DB}?driver=ODBC+Driver+18+for+SQL+Server"
 
     # --- Infraestructura de Mensajería y Caché ---
     RABBITMQ_URL: str = Field(default="amqp://guest:guest@localhost:5672/")
     REDIS_URL: str = Field(default="redis://localhost:6379/0")
-    
+
     # --- Búsqueda (Meilisearch) ---
     MEILISEARCH_URL: str = Field(default="http://localhost:7700")
-    MEILISEARCH_MASTER_KEY: str
+    MEILISEARCH_MASTER_KEY: str | None = None
 
     # --- Configuración del Lector ---
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
-        extra="ignore" # Ignora variables del SO que no nos interesan
+        extra="ignore",  # Ignora variables del SO que no nos interesan
     )
+
 
 @lru_cache
 def get_settings() -> Settings:
