@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import os
+import re
 import sys
 import tempfile
 from collections.abc import Iterable
@@ -70,6 +71,9 @@ def _read_required(paths: Iterable[Path]) -> dict[Path, str]:
 
 
 def _write_atomically(updates: dict[Path, str]) -> None:
+    updates = {
+        path: _deduplicate_from_imports(content) for path, content in updates.items()
+    }
     for path, content in updates.items():
         ast.parse(content, filename=str(path))
 
@@ -92,6 +96,32 @@ def _write_atomically(updates: dict[Path, str]) -> None:
     finally:
         for temporary_path in temporary_files.values():
             temporary_path.unlink(missing_ok=True)
+
+
+def _deduplicate_from_imports(document: str) -> str:
+    """Merge repeated generated ``from`` imports so verticals compose cleanly."""
+    imports_by_module: dict[str, list[str]] = {}
+    first_import_line: dict[str, int] = {}
+    output: list[str] = []
+    pattern = re.compile(r"from (?P<module>[\w.]+) import (?P<names>[\w, ]+)$")
+    for line in document.splitlines():
+        match = pattern.fullmatch(line)
+        if match is None:
+            output.append(line)
+            continue
+        module = match["module"]
+        names = [name.strip() for name in match["names"].split(",")]
+        if module not in imports_by_module:
+            imports_by_module[module] = names
+            first_import_line[module] = len(output)
+            output.append(line)
+            continue
+        known_names = imports_by_module[module]
+        known_names.extend(name for name in names if name not in known_names)
+        output[first_import_line[module]] = (
+            f"from {module} import {', '.join(known_names)}"
+        )
+    return "\n".join(output) + ("\n" if document.endswith("\n") else "")
 
 
 def register_list(

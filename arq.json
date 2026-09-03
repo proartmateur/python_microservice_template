@@ -132,6 +132,33 @@
     ]
   },
   {
+    "name": "hex use case find by",
+    "path": "/src/modules/<snake_name>s",
+    "short_option": "-f",
+    "option": "--uc-find-by",
+    "description": "Genera búsqueda segura por campo con resultado limitado o keyset",
+    "has_props": true,
+    "prop_type_separator": ":",
+    "prop_prop_place": 1,
+    "prop_type_place": 2,
+    "prop_prefix": null,
+    "templates": [
+      {
+        "template": "/hex/uc_find_by_use_case_template.py",
+        "destination": "<path>/use_cases/find_by_<snake_name>s.py"
+      },
+      {
+        "template": "/hex/uc_find_by_controller_template.py",
+        "destination": "<path>/infrastructure/http/controllers/find_by_<snake_name>s_controller.py",
+        "onDone": "python .gen_cli/scripts/register_uc_find_by.py <destination> <ent> <snake_name> \"<inline_props>\""
+      },
+      {
+        "template": "/hex/uc_find_by_test_template.py",
+        "destination": "/tests/unit/modules/<snake_name>s/test_find_by_<snake_name>s.py"
+      }
+    ]
+  },
+  {
     "name": "mvc base",
     "path": "/src/modules/<snake_name>s",
     "short_option": "-m",

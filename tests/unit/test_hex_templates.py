@@ -72,6 +72,23 @@ def test_uc_list_paginated_registers_a_single_post_generation_hook() -> None:
     ]
 
 
+def test_uc_find_by_registers_a_single_post_generation_hook() -> None:
+    architectures = json.loads((PROJECT_ROOT / "arq.json").read_text())
+    uc_find_by = next(
+        item for item in architectures if item["option"] == "--uc-find-by"
+    )
+    hooks = [
+        template["onDone"]
+        for template in uc_find_by["templates"]
+        if "onDone" in template
+    ]
+
+    assert hooks == [
+        "python .gen_cli/scripts/register_uc_find_by.py "
+        '<destination> <ent> <snake_name> "<inline_props>"'
+    ]
+
+
 def test_hex_property_blocks_preserve_python_indentation() -> None:
     # GenCLI v2.1 removes the opening parenthesis and one following character.
     expected_prefix = "(     $snake_prop$:"

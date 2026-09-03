@@ -9,6 +9,7 @@ SCRIPT = PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_list.py"
 PAGINATED_SCRIPT = (
     PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_list_paginated.py"
 )
+FIND_BY_SCRIPT = PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_find_by.py"
 
 
 def _write_base_module(project_root: Path) -> Path:
@@ -91,6 +92,22 @@ def _run_paginated_script(generated_file: Path) -> subprocess.CompletedProcess[s
             "User",
             "user",
             "nombre:str,email:str",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _run_find_by_script(generated_file: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(FIND_BY_SCRIPT),
+            str(generated_file),
+            "User",
+            "user",
+            "nombre:str,email:str,active:bool",
         ],
         check=False,
         capture_output=True,
@@ -183,3 +200,61 @@ def test_list_and_paginated_commands_can_extend_the_same_module(tmp_path: Path) 
     assert '"/"' in router
     assert "UserResponse" in schemas
     assert "UserPaginatedResponse" in schemas
+    assert schemas.count("from pydantic import BaseModel") == 1
+
+
+def test_register_uc_find_by_is_idempotent_and_uses_static_orm_columns(
+    tmp_path: Path,
+) -> None:
+    generated_file = _write_base_module(tmp_path)
+
+    first_run = _run_find_by_script(generated_file)
+    assert first_run.returncode == 0, first_run.stderr
+
+    updated_files = sorted((tmp_path / "src").glob("**/*.py"))
+    first_contents = {path: path.read_text(encoding="utf-8") for path in updated_files}
+    for path, content in first_contents.items():
+        ast.parse(content, filename=str(path))
+
+    second_run = _run_find_by_script(generated_file)
+    assert second_run.returncode == 0, second_run.stderr
+    assert {
+        path: path.read_text(encoding="utf-8") for path in updated_files
+    } == first_contents
+
+    adapter = (
+        tmp_path
+        / "src"
+        / "modules"
+        / "users"
+        / "infrastructure"
+        / "persistence"
+        / "repositories.py"
+    ).read_text(encoding="utf-8")
+    schemas = (generated_file.parent / "schemas.py").read_text(encoding="utf-8")
+    assert '"nombre": UserModel.nombre' in adapter
+    assert "column.contains(criteria.value)" in adapter
+    assert ".offset(" not in adapter
+    assert "field is not searchable" in schemas
+    assert "operator requires a string field" in schemas
+    assert "FindByOperator" not in (
+        tmp_path / "src" / "modules" / "users" / "domain" / "repositories.py"
+    ).read_text(encoding="utf-8")
+
+
+def test_find_by_can_coexist_with_list_and_paginated_commands(tmp_path: Path) -> None:
+    generated_file = _write_base_module(tmp_path)
+
+    assert _run_script(generated_file).returncode == 0
+    assert _run_paginated_script(generated_file).returncode == 0
+    result = _run_find_by_script(generated_file)
+
+    assert result.returncode == 0, result.stderr
+    router = generated_file.read_text(encoding="utf-8")
+    assert '"/"' in router
+    assert '"/paginated"' in router
+    assert '"/find-by"' in router
+    port = (
+        tmp_path / "src" / "modules" / "users" / "domain" / "repositories.py"
+    ).read_text(encoding="utf-8")
+    assert port.count("from src.shared.domain.pagination import") == 1
