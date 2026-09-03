@@ -23,6 +23,7 @@ start = "uvicorn src.main:app --host 0.0.0.0 --port 8000"
 test = "pytest tests/unit -v"
 lint = "ruff check src/ .gen_cli/scripts tests/unit"
 typecheck = "mypy src/ .gen_cli/scripts"
+delete_module = "python .gen_cli/scripts/delete_module.py"
 
 
 [tool.ruff]

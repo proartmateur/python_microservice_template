@@ -20,6 +20,12 @@ def _write_base_module(project_root: Path) -> Path:
     module_root = project_root / "src" / "modules" / "users"
     files = {
         module_root / "use_cases" / "list_users.py": "class ListUsers:\n    pass\n",
+        module_root
+        / "use_cases"
+        / "create_users.py": "# gencli:use-case-imports\n",
+        module_root
+        / "use_cases"
+        / "update_users.py": "# gencli:use-case-imports\n",
         module_root / "domain" / "repositories.py": (
             "from typing import Protocol\n\n"
             "# gencli:repository-port-imports\n\n"
@@ -34,7 +40,7 @@ def _write_base_module(project_root: Path) -> Path:
             "    pass\n"
         ),
         module_root / "infrastructure" / "persistence" / "repositories.py": (
-            "from sqlalchemy import and_, or_, select\n"
+            "from sqlalchemy import select\n"
             "from sqlalchemy.ext.asyncio import AsyncSession\n\n"
             "from src.modules.users.domain.repositories import UserRepository\n\n"
             "# gencli:repository-adapter-imports\n\n"

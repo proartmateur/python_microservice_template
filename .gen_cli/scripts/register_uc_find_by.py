@@ -113,6 +113,11 @@ def register_find_by(
         "# gencli:repository-adapter-imports",
         pagination_import,
     )
+    documents[adapter_path] = _insert_after_marker(
+        documents[adapter_path],
+        "# gencli:repository-adapter-imports",
+        "from sqlalchemy import and_, or_",
+    )
     column_map = ",\n            ".join(
         f'"{property_name}": {entity_name}Model.{property_name}'
         for property_name in properties

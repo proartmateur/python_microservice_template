@@ -68,6 +68,21 @@ curl -X POST http://localhost:8000/api/v1/users/find-by \
        "pagination": true, "limit": 50}'
 ```
 
+## Eliminar un módulo
+
+```bash
+poe delete_module User          # también acepta: user, users
+poe delete_module User --dry-run  # preview sin modificar nada
+```
+
+Elimina `src/modules/users/`, sus pruebas en `tests/unit/modules/users/`
+(y `tests/e2e/users/` si existe) y remueve de `src/main.py` el import y el
+`include_router` del módulo. Acepta `User`, `user` o `users`.
+
+Orden de operaciones (fallo seguro): primero limpia `main.py` con escritura
+atómica y validación `ast`; solo entonces borra los directorios. Si el módulo
+no existe, falla sin modificar nada. Otros módulos registrados quedan intactos.
+
 ## Variable de entorno obligatoria para paginación
 
 Los endpoints con cursor firman el token con HMAC-SHA256 y requieren en `.env`:

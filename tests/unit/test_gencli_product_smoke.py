@@ -2,6 +2,7 @@ import ast
 from difflib import unified_diff
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -30,9 +31,13 @@ def _prepare_isolated_project(project_root: Path) -> None:
     main_path = project_root / "src" / "main.py"
     main_path.parent.mkdir(parents=True)
     main_path.write_text(
+        "from fastapi import FastAPI\n\n"
         "# gencli:router-imports\n\n"
-        "def create_app() -> None:\n"
-        "    # gencli:router-includes\n",
+        "\n"
+        "def create_app() -> FastAPI:\n"
+        "    app = FastAPI()\n"
+        "    # gencli:router-includes\n"
+        "    return app\n",
         encoding="utf-8",
     )
 
@@ -90,18 +95,18 @@ def test_gencli_product_incremental_smoke_is_typed_and_idempotent(
 
     module_root = tmp_path / "src" / "modules" / "products"
     entities = (module_root / "domain" / "entities.py").read_text(encoding="utf-8")
-    models = (
-        module_root / "infrastructure" / "persistence" / "models.py"
-    ).read_text(encoding="utf-8")
-    schemas = (
-        module_root / "infrastructure" / "http" / "schemas.py"
-    ).read_text(encoding="utf-8")
+    models = (module_root / "infrastructure" / "persistence" / "models.py").read_text(
+        encoding="utf-8"
+    )
+    schemas = (module_root / "infrastructure" / "http" / "schemas.py").read_text(
+        encoding="utf-8"
+    )
     repositories = (
         module_root / "infrastructure" / "persistence" / "repositories.py"
     ).read_text(encoding="utf-8")
-    router = (
-        module_root / "infrastructure" / "http" / "routers.py"
-    ).read_text(encoding="utf-8")
+    router = (module_root / "infrastructure" / "http" / "routers.py").read_text(
+        encoding="utf-8"
+    )
 
     assert "user: UUID" in entities
     assert "is_physical: bool" in entities
@@ -126,3 +131,32 @@ def test_gencli_product_incremental_smoke_is_typed_and_idempotent(
         assert endpoint in router
     assert router.index('"/paginated"') < router.index('"/{identifier}"')
     assert router.index('"/find-by"') < router.index('"/{identifier}"')
+
+
+def test_gencli_subset_generation_is_lint_clean(tmp_path: Path) -> None:
+    _prepare_isolated_project(tmp_path)
+
+    _run_gen(tmp_path, "--hex")
+    for option in ("--uc-create", "--uc-get", "--uc-delete"):
+        _run_gen(tmp_path, option)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "ruff", "check", "src"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    repositories = (
+        tmp_path
+        / "src"
+        / "modules"
+        / "products"
+        / "infrastructure"
+        / "persistence"
+        / "repositories.py"
+    ).read_text(encoding="utf-8")
+    assert "import and_" not in repositories
+    assert "import or_" not in repositories

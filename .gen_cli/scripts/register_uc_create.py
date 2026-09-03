@@ -39,10 +39,33 @@ def register_create(
     dependencies_path = module_root / "infrastructure" / "http" / "dependencies.py"
     router_path = module_root / "infrastructure" / "http" / "routers.py"
     schemas_path = module_root / "infrastructure" / "http" / "schemas.py"
+    use_case_path = module_root / "use_cases" / f"create_{plural_name}.py"
     main_path = project_root / "src" / "main.py"
     documents = _read_required(
-        (port_path, adapter_path, dependencies_path, router_path, schemas_path, main_path)
+        (
+            port_path,
+            adapter_path,
+            dependencies_path,
+            router_path,
+            schemas_path,
+            use_case_path,
+            main_path,
+        )
     )
+
+    type_imports = {
+        "UUID": "from uuid import UUID",
+        "datetime": "from datetime import datetime",
+    }
+    required_type_imports = [
+        type_imports[property_type]
+        for property_type in dict.fromkeys(property_types.values())
+        if property_type in type_imports
+    ]
+    for type_import in required_type_imports:
+        documents[use_case_path] = _insert_after_marker(
+            documents[use_case_path], "# gencli:use-case-imports", type_import
+        )
 
     entity_import = (
         f"from src.modules.{plural_name}.domain.entities import {entity_name}Entity"

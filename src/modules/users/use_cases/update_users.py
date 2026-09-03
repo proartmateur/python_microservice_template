@@ -4,6 +4,8 @@ from src.modules.users.domain.entities import UserEntity
 from src.modules.users.domain.repositories import UserRepository
 from src.shared.domain.unit_of_work import UnitOfWork
 
+# gencli:use-case-imports
+
 
 class UpdateUsers:
     """Actualiza un agregado activo y confirma una unica transaccion."""

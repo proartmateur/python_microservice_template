@@ -376,6 +376,7 @@ def register_list(
         documents[router_path],
         "# gencli:router-imports",
         (
+            "from fastapi import Query\n"
             f"from .controllers.list_{plural_name}_controller import "
             f"list_{plural_name}_controller\n"
             f"from src.modules.{plural_name}.infrastructure.http.dependencies "

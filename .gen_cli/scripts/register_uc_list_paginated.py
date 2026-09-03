@@ -101,6 +101,11 @@ def register_list_paginated(
     )
     documents[adapter_path] = _insert_after_marker(
         documents[adapter_path],
+        "# gencli:repository-adapter-imports",
+        "from sqlalchemy import and_, or_",
+    )
+    documents[adapter_path] = _insert_after_marker(
+        documents[adapter_path],
         "# gencli:repository-adapter-methods",
         (
             f"    async def list_paginated(\n"
@@ -230,6 +235,7 @@ def register_list_paginated(
         documents[router_path],
         "# gencli:router-imports",
         (
+            "from fastapi import Query\n"
             f"from .controllers.list_paginated_{plural_name}_controller import "
             f"list_paginated_{plural_name}_controller\n"
             f"from src.modules.{plural_name}.infrastructure.http.dependencies "

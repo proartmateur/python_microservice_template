@@ -13,7 +13,6 @@ from src.config import get_settings
 # gencli:router-imports
 from src.modules.users.infrastructure.http.routers import router as users_router
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     # 1. Cargamos la configuración
@@ -49,7 +48,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     print("🛑 Apagando el servicio y cerrando conexiones de DB...")
     await db_manager.close_db()
 
-
 def create_app() -> FastAPI:
     settings = get_settings()
 
@@ -83,6 +81,5 @@ def create_app() -> FastAPI:
         }
 
     return app
-
 
 app = create_app()
