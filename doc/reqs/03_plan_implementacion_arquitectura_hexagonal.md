@@ -1,6 +1,6 @@
 # PLAN-01 · Implementación incremental de REQS-01
 
-> **Estado:** En curso · Fases 0 a 6 completadas a nivel de generador; la migración de los módulos heredados se realizará al completar sus comandos `--uc-*`.
+> **Estado:** En curso · Fases 0 a 8 completadas a nivel de generador; la migración de los módulos heredados se realizará al completar sus comandos `--uc-*`.
 > **Alcance:** Implementar REQS-01 con GenCLI v2: `--hex` crea el núcleo y cada `--uc-*` añade una capacidad vertical.
 > **Estimación total:** 18 días hábiles de desarrollo efectivo para una persona senior, más 1.5 a 2 días de contingencia.
 > **Restricción del plan:** Ninguna fase supera 2 días hábiles.
@@ -198,10 +198,11 @@
 ### Fase 8 — `--uc-update` y `--uc-delete`
 
 **Duración:** 2 días
+**Estado:** Completada a nivel de generador. `PUT /{id}` reemplaza el estado completo del agregado; `DELETE /{id}` realiza eliminación lógica en UTC. Ambos hooks son idempotentes, atómicos y componen con las rutas de colección previas.
 
 **Actividades:**
 
-- Crear templates, hooks y tests para actualización (`PUT`/`PATCH`, decisión documentada) y eliminación lógica (`DELETE /{id}`).
+- Crear templates, hooks y tests para actualización (`PUT`, reemplazo completo) y eliminación lógica (`DELETE /{id}`).
 - Añadir operaciones necesarias al puerto y adaptador.
 - Verificar rollback ante errores de integridad y que registros eliminados no aparezcan en list/find-by.
 - Revisar consistencia de soft delete, UTC y UUIDv7.

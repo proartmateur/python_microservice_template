@@ -12,6 +12,8 @@ PAGINATED_SCRIPT = (
 FIND_BY_SCRIPT = PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_find_by.py"
 CREATE_SCRIPT = PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_create.py"
 GET_SCRIPT = PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_get.py"
+UPDATE_SCRIPT = PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_update.py"
+DELETE_SCRIPT = PROJECT_ROOT / ".gen_cli" / "scripts" / "register_uc_delete.py"
 
 
 def _write_base_module(project_root: Path) -> Path:
@@ -145,6 +147,38 @@ def _run_get_script(generated_file: Path) -> subprocess.CompletedProcess[str]:
         [
             sys.executable,
             str(GET_SCRIPT),
+            str(generated_file),
+            "User",
+            "user",
+            "nombre:str,email:str",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _run_update_script(generated_file: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(UPDATE_SCRIPT),
+            str(generated_file),
+            "User",
+            "user",
+            "nombre:str,email:str",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _run_delete_script(generated_file: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(DELETE_SCRIPT),
             str(generated_file),
             "User",
             "user",
@@ -375,3 +409,69 @@ def test_create_get_and_existing_collection_commands_compose(tmp_path: Path) -> 
     assert '"/{identifier}"' in router
     assert main.count("import router as users_router") == 1
     assert main.count("app.include_router(users_router") == 1
+
+
+def test_update_and_delete_are_idempotent_and_keep_static_routes_first(
+    tmp_path: Path,
+) -> None:
+    generated_file = _write_base_module(tmp_path)
+
+    for runner in (
+        _run_script,
+        _run_paginated_script,
+        _run_find_by_script,
+        _run_create_script,
+        _run_get_script,
+        _run_update_script,
+        _run_delete_script,
+    ):
+        result = runner(generated_file)
+        assert result.returncode == 0, result.stderr
+
+    updated_files = sorted((tmp_path / "src").glob("**/*.py"))
+    first_contents = {path: path.read_text(encoding="utf-8") for path in updated_files}
+    assert _run_update_script(generated_file).returncode == 0
+    assert _run_delete_script(generated_file).returncode == 0
+    assert {
+        path: path.read_text(encoding="utf-8") for path in updated_files
+    } == first_contents
+    for path, content in first_contents.items():
+        ast.parse(content, filename=str(path))
+
+    router = generated_file.read_text(encoding="utf-8")
+    assert router.index('"/paginated"') < router.index('"/{identifier}"')
+    assert router.index('"/find-by"') < router.index('"/{identifier}"')
+    assert '@router.put("/{identifier}"' in router
+    assert '@router.delete("/{identifier}"' in router
+    adapter = (
+        tmp_path
+        / "src/modules/users/infrastructure/persistence/repositories.py"
+    ).read_text(encoding="utf-8")
+    # Read, search, update, and delete all select only active rows.
+    assert adapter.count("UserModel.deleted_at.is_(None)") == 6
+
+
+def test_update_and_delete_generate_typed_soft_delete_contract(tmp_path: Path) -> None:
+    generated_file = _write_base_module(tmp_path)
+
+    assert _run_update_script(generated_file).returncode == 0
+    result = _run_delete_script(generated_file)
+    assert result.returncode == 0, result.stderr
+
+    module_root = generated_file.parents[2]
+    adapter = (module_root / "infrastructure/persistence/repositories.py").read_text(
+        encoding="utf-8"
+    )
+    port = (module_root / "domain/repositories.py").read_text(encoding="utf-8")
+    schemas = (module_root / "infrastructure/http/schemas.py").read_text(
+        encoding="utf-8"
+    )
+    assert "async def update" in port
+    assert "async def soft_delete" in port
+    assert "UserNotFoundError" in adapter
+    assert "UserAlreadyExistsError" in adapter
+    assert "model.deleted_at = datetime.now(timezone.utc)" in adapter
+    assert adapter.count("UserModel.deleted_at.is_(None)") == 2
+    assert "await self._session.flush()" in adapter
+    assert "await self._session.commit()" not in adapter
+    assert "class UserUpdateRequest" in schemas

@@ -68,7 +68,7 @@ Cada comando incorpora una única capacidad vertical: caso de uso, contrato de r
 | `--uc-create` | Caso de uso de creación, controller/ruta POST, schemas y tests | Método `save`/`create`; provider; router; registro en `main.py` |
 | `--uc-get` | Caso de uso de consulta individual, controller/ruta GET `/{id}`, schemas y tests | Método `find_by_id`; provider; router; registro en `main.py` |
 | `--uc-find-by` | Caso de uso genérico de búsqueda, controller/ruta `POST /find-by`, payload y schemas de respuesta, pruebas | Método `find_by` en puerto y adaptador; provider; router; registro en `main.py` |
-| `--uc-update` | Caso de uso de actualización, controller/ruta PUT/PATCH, schemas y tests | Método de persistencia requerido; provider; router; registro en `main.py` |
+| `--uc-update` | Caso de uso de actualización, controller/ruta `PUT /{id}` de reemplazo completo, schemas y tests | Método `update` con `flush`, errores tipados, provider, router y registro en `main.py` |
 | `--uc-delete` | Caso de uso de eliminación lógica, controller/ruta DELETE y tests | Método `soft_delete`; provider; router; registro en `main.py` |
 
 Ejemplo de uso:
