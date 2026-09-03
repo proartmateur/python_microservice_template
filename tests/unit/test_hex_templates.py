@@ -34,6 +34,21 @@ def test_hex_templates_expose_mutation_markers() -> None:
         assert marker in (TEMPLATES_ROOT / filename).read_text()
 
 
+def test_uc_list_registers_a_single_post_generation_hook() -> None:
+    architectures = json.loads((PROJECT_ROOT / "arq.json").read_text())
+    uc_list = next(item for item in architectures if item["option"] == "--uc-list")
+    hooks = [
+        template["onDone"]
+        for template in uc_list["templates"]
+        if "onDone" in template
+    ]
+
+    assert hooks == [
+        "python .gen_cli/scripts/register_uc_list.py "
+        '<destination> <ent> <snake_name> "<inline_props>"'
+    ]
+
+
 def test_hex_property_blocks_preserve_python_indentation() -> None:
     # GenCLI v2.1 removes the opening parenthesis and one following character.
     expected_prefix = "(     $snake_prop$:"

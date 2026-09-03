@@ -70,6 +70,41 @@
     ]
   },
   {
+    "name": "hex use case list",
+    "path": "/src/modules/<snake_name>s",
+    "short_option": "-l",
+    "option": "--uc-list",
+    "description": "Genera el caso de uso de listado y registra sus contratos HTTP y persistencia",
+    "has_props": true,
+    "prop_type_separator": ":",
+    "prop_prop_place": 1,
+    "prop_type_place": 2,
+    "prop_prefix": null,
+    "templates": [
+      {
+        "template": "/hex/uc_list_use_case_template.py",
+        "destination": "<path>/use_cases/list_<snake_name>s.py"
+      },
+      {
+        "template": "/hex/uc_list_controller_template.py",
+        "destination": "<path>/infrastructure/http/controllers/list_<snake_name>s_controller.py"
+      },
+      {
+        "template": "/hex/uc_list_schemas_template.py",
+        "destination": "<path>/infrastructure/http/schemas.py"
+      },
+      {
+        "template": "/hex/uc_list_router_template.py",
+        "destination": "<path>/infrastructure/http/routers.py",
+        "onDone": "python .gen_cli/scripts/register_uc_list.py <destination> <ent> <snake_name> \"<inline_props>\""
+      },
+      {
+        "template": "/hex/uc_list_test_template.py",
+        "destination": "/tests/unit/modules/<snake_name>s/test_list_<snake_name>s.py"
+      }
+    ]
+  },
+  {
     "name": "mvc base",
     "path": "/src/modules/<snake_name>s",
     "short_option": "-m",

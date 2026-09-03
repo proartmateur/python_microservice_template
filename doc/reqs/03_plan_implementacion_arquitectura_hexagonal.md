@@ -1,6 +1,6 @@
 # PLAN-01 · Implementación incremental de REQS-01
 
-> **Estado:** En curso · Fases 0, 1 y 2 completadas.
+> **Estado:** En curso · Fases 0 a 4 completadas a nivel de generador; la migración de los módulos heredados se realizará al completar sus comandos `--uc-*`.
 > **Alcance:** Implementar REQS-01 con GenCLI v2: `--hex` crea el núcleo y cada `--uc-*` añade una capacidad vertical.
 > **Estimación total:** 18 días hábiles de desarrollo efectivo para una persona senior, más 1.5 a 2 días de contingencia.
 > **Restricción del plan:** Ninguna fase supera 2 días hábiles.
@@ -92,6 +92,7 @@
 ### Fase 3 — Infraestructura de hooks y mutaciones idempotentes
 
 **Duración:** 1.5 días
+**Estado:** Completada.
 
 **Actividades:**
 
@@ -112,6 +113,7 @@
 ### Fase 4 — `--uc-list` vertical de referencia
 
 **Duración:** 1.5 días
+**Estado:** Completada a nivel de generador y validada en un proyecto aislado con GenCLI v2.1. La migración del módulo heredado `users` se pospone para evitar mantener rutas CRUD mixtas mientras faltan `--uc-create`, `--uc-get`, `--uc-update` y `--uc-delete`.
 
 **Actividades:**
 

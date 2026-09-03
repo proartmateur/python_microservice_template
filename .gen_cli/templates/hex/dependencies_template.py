@@ -7,6 +7,7 @@ from src.modules.<snake_name>s.infrastructure.persistence.repositories import (
 )
 from src.shared.infrastructure.persistence.database import get_db_session
 
+# gencli:use-case-imports
 
 def get_<snake_name>_repository(
     session: AsyncSession = Depends(get_db_session),
