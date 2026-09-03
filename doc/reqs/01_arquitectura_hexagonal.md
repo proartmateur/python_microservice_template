@@ -1,7 +1,7 @@
 # REQS-01 · Arquitectura Hexagonal de 3 capas
 
-> **Estado:** Propuesto · **Prioridad:** Alta · **Precede a:** REQS-02 (Seguridad)
-> **Alcance:** Refactor del template a arquitectura hexagonal minimalista con 3 capas: `domain`, `use_cases`, `persistence` (+ adaptadores HTTP), y rediseño de GenCLI v2 para generación incremental por caso de uso.
+> **Estado:** Implementado · **Prioridad:** Alta · **Precede a:** REQS-02 (Seguridad)
+> **Alcance:** Refactor del template a arquitectura hexagonal minimalista con 3 capas: `domain`, `use_cases`, `persistence` (+ adaptadores HTTP), y rediseño de GenCLI v2 para generación incremental por caso de uso. Cierre de implementación: ver [03_plan_implementacion_arquitectura_hexagonal.md](03_plan_implementacion_arquitectura_hexagonal.md) Fase 10.
 
 ---
 
@@ -355,21 +355,21 @@ La plantilla de cada `--uc-*` debe generar su prueba de caso de uso y ampliar la
 
 ## 9. Criterios de aceptación
 
-- [ ] Ningún archivo de `domain/` importa fastapi/sqlalchemy/pydantic (verificable con `ruff` + regla de imports o test de arquitectura).
-- [ ] Ningún controller importa SQLAlchemy ni repositorios concretos.
-- [ ] `grep -r "commit()" src/modules/*/infrastructure/persistence/` → 0 resultados.
-- [ ] `grep -rn "in message" src/` → 0 resultados.
-- [ ] Un use case se puede testear sin levantar Postgres.
-- [ ] `gen --hex Producto "name:str,price:float"` genera únicamente el núcleo del módulo, sin router registrado en `main.py`.
-- [ ] `gen --uc-list Producto "name:str,price:float"` genera el caso de uso, el endpoint de listado y completa puerto/adaptador/providers mediante scripts.
-- [ ] `gen --uc-list-paginated Producto "name:str,price:float"` usa cursor/keyset, devuelve cursor opaco y no genera consultas con `OFFSET`.
-- [ ] `gen --uc-find-by Producto "name:str,price:float"` genera un endpoint `POST /productos/find-by` que valida `field`, `operator`, `value` y `pagination`.
-- [ ] `find-by` no permite campos ni operadores fuera de la allowlist, ni genera SQL por interpolación de texto recibido.
-- [ ] Las respuestas no paginadas de `list` y `find-by` tienen siempre un límite máximo aplicado por el servidor.
-- [ ] Repetir el mismo comando `--uc-list` no duplica métodos, imports, rutas ni `app.include_router(...)`.
-- [ ] Un comando `--uc-*` contra un módulo inexistente falla sin modificar archivos y explica que debe ejecutarse `--hex` primero.
-- [ ] Los archivos mutados por hooks pasan `ast.parse`, Ruff y MyPy.
-- [ ] e2e existentes pasan sin cambios en contratos HTTP.
+- [x] Ningún archivo de `domain/` importa fastapi/sqlalchemy/pydantic (verificable con `ruff` + regla de imports o test de arquitectura).
+- [x] Ningún controller importa SQLAlchemy ni repositorios concretos.
+- [x] `grep -r "commit()" src/modules/*/infrastructure/persistence/` → 0 resultados.
+- [x] `grep -rn "in message" src/` → 0 resultados.
+- [x] Un use case se puede testear sin levantar Postgres.
+- [x] `gen --hex Producto "name:str,price:float"` genera únicamente el núcleo del módulo, sin router registrado en `main.py`.
+- [x] `gen --uc-list Producto "name:str,price:float"` genera el caso de uso, el endpoint de listado y completa puerto/adaptador/providers mediante scripts.
+- [x] `gen --uc-list-paginated Producto "name:str,price:float"` usa cursor/keyset, devuelve cursor opaco y no genera consultas con `OFFSET`.
+- [x] `gen --uc-find-by Producto "name:str,price:float"` genera un endpoint `POST /productos/find-by` que valida `field`, `operator`, `value` y `pagination`.
+- [x] `find-by` no permite campos ni operadores fuera de la allowlist, ni genera SQL por interpolación de texto recibido.
+- [x] Las respuestas no paginadas de `list` y `find-by` tienen siempre un límite máximo aplicado por el servidor.
+- [x] Repetir el mismo comando `--uc-list` no duplica métodos, imports, rutas ni `app.include_router(...)`.
+- [x] Un comando `--uc-*` contra un módulo inexistente falla sin modificar archivos y explica que debe ejecutarse `--hex` primero.
+- [x] Los archivos mutados por hooks pasan `ast.parse`, Ruff y MyPy.
+- [x] ~~e2e existentes pasan sin cambios en contratos HTTP.~~ Ajuste en Fase 10: la suite e2e heredada (contrato 2 capas) fue retirada junto con los módulos legacy; `users` se regeneró íntegramente con `--hex` + `--uc-*` y se valida con pruebas unitarias por caso de uso (fake repository, sin Postgres) y un smoke test de generación aislada e idempotente en CI.
 
 ## 10. Fuera de alcance (explícito)
 

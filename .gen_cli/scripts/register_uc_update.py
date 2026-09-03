@@ -71,12 +71,13 @@ def register_update(
         f"    async def update(self, identifier: UUID, **values: object) -> {entity_name}Entity:\n        \"\"\"Actualiza una entidad activa sin confirmar la transaccion.\"\"\"\n        ...",
     )
 
-    for addition in ("from uuid import UUID", entity_import, exceptions_import, model_import, "from sqlalchemy.exc import IntegrityError"):
+    for addition in ("from uuid import UUID", "from typing import cast", entity_import, exceptions_import, model_import, "from sqlalchemy.exc import IntegrityError"):
         documents[adapter_path] = _insert_after_marker(
             documents[adapter_path], "# gencli:repository-adapter-imports", addition
         )
     assignments = "\n        ".join(
-        f"model.{property} = values[{property!r}]" for property in properties
+        f"model.{property} = cast({property_types[property]!r}, values[{property!r}])"
+        for property in properties
     )
     documents[adapter_path] = _insert_after_marker(
         documents[adapter_path], "# gencli:repository-adapter-methods",
@@ -127,7 +128,7 @@ def register_update(
     )
     documents[router_path] = _insert_after_marker(
         documents[router_path], "# gencli:router-imports",
-        f"from src.modules.{plural_name}.infrastructure.http.controllers.update_{plural_name}_controller import update_{plural_name}_controller\nfrom src.modules.{plural_name}.infrastructure.http.dependencies import get_update_{plural_name}\nfrom src.modules.{plural_name}.infrastructure.http.schemas import {entity_name}UpdateRequest, {entity_name}UpdateResponse\nfrom src.modules.{plural_name}.use_cases.update_{plural_name} import Update{plural_entity}",
+        f"from .controllers.update_{plural_name}_controller import update_{plural_name}_controller\nfrom src.modules.{plural_name}.infrastructure.http.dependencies import get_update_{plural_name}\nfrom src.modules.{plural_name}.infrastructure.http.schemas import {entity_name}UpdateRequest, {entity_name}UpdateResponse\nfrom src.modules.{plural_name}.use_cases.update_{plural_name} import Update{plural_entity}",
     )
     documents[router_path] = _append_after_marker(
         documents[router_path], "# gencli:routes",

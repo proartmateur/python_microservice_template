@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv with Python 3.13
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Ruff
+        run: uv run ruff check src/ .gen_cli/scripts tests/unit
+
+      - name: MyPy
+        run: uv run mypy src/ .gen_cli/scripts
+
+      - name: Make gen executable (used by smoke tests)
+        run: chmod +x gen
+
+      - name: Pytest
+        run: uv run pytest tests/unit -q

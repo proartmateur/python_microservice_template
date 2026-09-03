@@ -230,8 +230,7 @@ def register_list_paginated(
         documents[router_path],
         "# gencli:router-imports",
         (
-            f"from src.modules.{plural_name}.infrastructure.http.controllers."
-            f"list_paginated_{plural_name}_controller import "
+            f"from .controllers.list_paginated_{plural_name}_controller import "
             f"list_paginated_{plural_name}_controller\n"
             f"from src.modules.{plural_name}.infrastructure.http.dependencies "
             f"import get_list_paginated_{plural_name}\n"

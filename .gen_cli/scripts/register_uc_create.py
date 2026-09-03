@@ -178,8 +178,8 @@ def register_create(
         documents[router_path],
         "# gencli:router-imports",
         (
-            f"from src.modules.{plural_name}.infrastructure.http.controllers."
-            f"create_{plural_name}_controller import create_{plural_name}_controller\n"
+            f"from .controllers.create_{plural_name}_controller import "
+            f"create_{plural_name}_controller\n"
             f"from src.modules.{plural_name}.infrastructure.http.dependencies "
             f"import get_create_{plural_name}\n"
             f"from src.modules.{plural_name}.infrastructure.http.schemas import "

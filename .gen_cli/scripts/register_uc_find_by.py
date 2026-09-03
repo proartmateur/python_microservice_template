@@ -241,7 +241,10 @@ def register_find_by(
             '            raise ValueError("field is not searchable")\n'
             "        if type(self.query.value) is not expected_type:\n"
             '            raise ValueError("query.value has an invalid type for field")\n'
-            "        if self.query.operator is not FindByOperator.EQUALS and expected_type is not str:\n"
+            "        is_text_operator = (\n"
+            "            self.query.operator is not FindByOperator.EQUALS\n"
+            "        )\n"
+            "        if is_text_operator and expected_type is not str:\n"
             '            raise ValueError("operator requires a string field")\n'
             "        if not 1 <= self.limit <= 100:\n"
             '            raise ValueError("limit must be between 1 and 100")\n'
@@ -281,8 +284,8 @@ def register_find_by(
         documents[router_path],
         "# gencli:router-imports",
         (
-            f"from src.modules.{plural_name}.infrastructure.http.controllers."
-            f"find_by_{plural_name}_controller import find_by_{plural_name}_controller\n"
+            f"from .controllers.find_by_{plural_name}_controller import "
+            f"find_by_{plural_name}_controller\n"
             f"from src.modules.{plural_name}.infrastructure.http.dependencies "
             f"import get_find_by_{plural_name}\n"
             f"from src.modules.{plural_name}.infrastructure.http.schemas import "

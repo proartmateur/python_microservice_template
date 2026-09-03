@@ -7,12 +7,72 @@ import os
 import re
 import sys
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
+from typing import TypedDict
 
 
 class MutationError(RuntimeError):
     """Indica que un archivo no cumple el contrato de mutación de GenCLI."""
+
+
+_IMPORT_LINE_LIMIT = 88
+_FLAT_FROM_IMPORT = re.compile(r"from (?P<module>[\w.]+) import (?P<names>[\w, ]+)")
+_WRAPPED_FROM_IMPORT = re.compile(r"from (?P<module>[\w.]+) import \($")
+
+
+class _FromImport(TypedDict):
+    """Un ``from ... import ...`` plano o entre paréntesis con su rango de líneas."""
+
+    module: str
+    names: list[str]
+    start: int
+    end: int
+
+
+def _iter_from_imports(lines: list[str]) -> Iterator[_FromImport]:
+    """Recorre ``from`` imports planos y entre paréntesis con su extensión."""
+    index = 0
+    while index < len(lines):
+        line = lines[index].strip()
+        flat = _FLAT_FROM_IMPORT.fullmatch(line)
+        if flat is not None:
+            names = [name.strip() for name in flat["names"].split(",")]
+            yield {
+                "module": flat["module"],
+                "names": [name for name in names if name],
+                "start": index,
+                "end": index,
+            }
+            index += 1
+            continue
+        opening = _WRAPPED_FROM_IMPORT.fullmatch(line)
+        if opening is not None:
+            collected_names: list[str] = []
+            end = index + 1
+            while end < len(lines) and lines[end].strip() != ")":
+                name = lines[end].strip().rstrip(",")
+                if name:
+                    collected_names.append(name)
+                end += 1
+            if end < len(lines):
+                yield {
+                    "module": opening["module"],
+                    "names": collected_names,
+                    "start": index,
+                    "end": end,
+                }
+                index = end + 1
+                continue
+        index += 1
+
+
+def _format_from_import(module: str, names: list[str]) -> list[str]:
+    """Devuelve las líneas canónicas del import respetando el límite de línea."""
+    flat = f"from {module} import {', '.join(names)}"
+    if len(flat) <= _IMPORT_LINE_LIMIT:
+        return [flat]
+    return [f"from {module} import (", *(f"    {name}," for name in names), ")"]
 
 
 def _insert_after_marker(document: str, marker: str, addition: str) -> str:
@@ -35,17 +95,14 @@ def _insert_after_marker(document: str, marker: str, addition: str) -> str:
 
 def _import_is_present(document_lines: list[str], requested_import: str) -> bool:
     """Return whether an equivalent or broader ``from`` import already exists."""
-    pattern = re.compile(r"from (?P<module>[\w.]+) import (?P<names>[\w, ]+)$")
-    requested = pattern.fullmatch(requested_import)
+    requested = _FLAT_FROM_IMPORT.fullmatch(requested_import.strip())
     if requested is None:
         return False
     requested_names = {name.strip() for name in requested["names"].split(",")}
-    for line in document_lines:
-        existing = pattern.fullmatch(line)
-        if existing is None or existing["module"] != requested["module"]:
+    for statement in _iter_from_imports(document_lines):
+        if statement["module"] != requested["module"]:
             continue
-        existing_names = {name.strip() for name in existing["names"].split(",")}
-        if requested_names <= existing_names:
+        if requested_names <= set(statement["names"]):
             return True
     return False
 
@@ -126,30 +183,40 @@ def _write_atomically(updates: dict[Path, str]) -> None:
 
 
 def _deduplicate_from_imports(document: str) -> str:
-    """Merge repeated generated ``from`` imports so verticals compose cleanly."""
-    imports_by_module: dict[str, list[str]] = {}
-    first_import_line: dict[str, int] = {}
-    output: list[str] = []
-    pattern = re.compile(r"from (?P<module>[\w.]+) import (?P<names>[\w, ]+)$")
-    for line in document.splitlines():
-        match = pattern.fullmatch(line)
-        if match is None:
-            output.append(line)
-            continue
-        module = match["module"]
-        names = sorted(name.strip() for name in match["names"].split(","))
-        if module not in imports_by_module:
-            imports_by_module[module] = names
-            first_import_line[module] = len(output)
-            output.append(line)
-            continue
-        known_names = imports_by_module[module]
-        known_names.extend(name for name in names if name not in known_names)
-        known_names.sort()
-        output[first_import_line[module]] = (
-            f"from {module} import {', '.join(known_names)}"
-        )
-    return "\n".join(output) + ("\n" if document.endswith("\n") else "")
+    """Merge repeated ``from`` imports and keep every import line within limits."""
+    lines = document.splitlines(keepends=True)
+    statements = list(_iter_from_imports(lines))
+    first_by_module: dict[str, _FromImport] = {}
+    names_by_module: dict[str, list[str]] = {}
+    counts_by_module: dict[str, int] = {}
+    replacements: dict[tuple[int, int], list[str]] = {}
+    for statement in statements:
+        module = statement["module"]
+        counts_by_module[module] = counts_by_module.get(module, 0) + 1
+        merged = names_by_module.setdefault(module, [])
+        for name in statement["names"]:
+            if name not in merged:
+                merged.append(name)
+        if module in first_by_module:
+            replacements[(statement["start"], statement["end"])] = []
+        else:
+            first_by_module[module] = statement
+    for module, statement in first_by_module.items():
+        span = (statement["start"], statement["end"])
+        if counts_by_module[module] > 1:
+            replacements[span] = _format_from_import(
+                module, sorted(names_by_module[module])
+            )
+        elif (
+            statement["start"] == statement["end"]
+            and len(lines[statement["start"]].strip()) > _IMPORT_LINE_LIMIT
+        ):
+            replacements[span] = _format_from_import(module, statement["names"])
+    for span in sorted(replacements, reverse=True):
+        lines[span[0] : span[1] + 1] = [
+            f"{line}\n" for line in replacements[span]
+        ]
+    return "".join(lines)
 
 
 def register_list(
@@ -309,8 +376,8 @@ def register_list(
         documents[router_path],
         "# gencli:router-imports",
         (
-            f"from src.modules.{plural_name}.infrastructure.http.controllers."
-            f"list_{plural_name}_controller import list_{plural_name}_controller\n"
+            f"from .controllers.list_{plural_name}_controller import "
+            f"list_{plural_name}_controller\n"
             f"from src.modules.{plural_name}.infrastructure.http.dependencies "
             f"import get_list_{plural_name}\n"
             f"from src.modules.{plural_name}.infrastructure.http.schemas "

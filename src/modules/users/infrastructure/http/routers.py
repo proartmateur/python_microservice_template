@@ -1,114 +1,104 @@
-import uuid
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
-from src.modules.users.infrastructure.http.controllers.update_user_controller import update_user_controller
-from src.modules.users.infrastructure.http.controllers.create_user_controller import create_user_controller
-from src.modules.users.infrastructure.http.controllers.list_users_controller import list_users_controller
-from src.modules.users.infrastructure.http.controllers.get_user_controller import get_user_controller
-from src.modules.users.infrastructure.http.controllers.delete_user_controller import delete_user_controller
-from src.shared.infrastructure.persistence.database import get_db_session
+from fastapi import APIRouter, Depends, Query
+
+# gencli:router-imports
+from .controllers.delete_users_controller import delete_users_controller
+from src.modules.users.infrastructure.http.dependencies import (
+    get_create_users,
+    get_delete_users,
+    get_find_by_users,
+    get_get_users,
+    get_list_paginated_users,
+    get_list_users,
+    get_update_users,
+)
+from src.modules.users.use_cases.delete_users import DeleteUsers
+from .controllers.update_users_controller import update_users_controller
 from src.modules.users.infrastructure.http.schemas import (
-    ErrorResponse,
     UserCreateRequest,
+    UserCreateResponse,
+    UserFindByRequest,
+    UserFindByResponse,
+    UserGetResponse,
     UserPaginatedResponse,
     UserResponse,
-    UserUpdateRequest
+    UserUpdateRequest,
+    UserUpdateResponse,
 )
+from src.modules.users.use_cases.update_users import UpdateUsers
+from uuid import UUID
+
+from .controllers.get_users_controller import get_users_controller
+from src.modules.users.use_cases.get_users import GetUsers
+from .controllers.create_users_controller import create_users_controller
+from src.modules.users.use_cases.create_users import CreateUsers
+from .controllers.find_by_users_controller import find_by_users_controller
+from src.modules.users.use_cases.find_by_users import FindByUsers
+from .controllers.list_paginated_users_controller import list_paginated_users_controller
+from src.modules.users.use_cases.list_paginated_users import ListPaginatedUsers
+from .controllers.list_users_controller import list_users_controller
+from src.modules.users.use_cases.list_users import ListUsers
+
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-
+# gencli:routes
+@router.post("/", response_model=UserCreateResponse, status_code=201)
+async def create_users(
+    request: UserCreateRequest,
+    use_case: Annotated[CreateUsers, Depends(get_create_users)],
+) -> UserCreateResponse:
+    return await create_users_controller(use_case, request)
+@router.post("/find-by", response_model=UserFindByResponse)
+async def find_by_users(
+    request: UserFindByRequest,
+    use_case: Annotated[FindByUsers, Depends(get_find_by_users)],
+) -> UserFindByResponse:
+    return await find_by_users_controller(use_case, request)
 @router.get(
-    "/",
+    "/paginated",
     response_model=UserPaginatedResponse,
-    summary="Listar usuarios paginados",
-    description="Lista usuarios aplicando paginacion por numero de pagina y limite de resultados.",
-    response_description="Usuarios paginados",
-    responses={
-        400: {"model": ErrorResponse, "description": "Parametros de paginacion invalidos"},
-        422: {"description": "Error de validacion de FastAPI"},
-    },
 )
+async def list_paginated_users(
+    use_case: Annotated[
+        ListPaginatedUsers,
+        Depends(get_list_paginated_users),
+    ],
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    cursor: str | None = None,
+) -> UserPaginatedResponse:
+    return await list_paginated_users_controller(
+        use_case, limit=limit, cursor=cursor
+    )
+@router.get("/", response_model=list[UserResponse])
 async def list_users(
-        limit: int = Query(default=5, ge=1, description="Cantidad maxima de registros por pagina"),
-        page: int = Query(default=0, ge=0, description="Indice de pagina (base 0)"),
-        session: AsyncSession = Depends(get_db_session)
-):
-    return await list_users_controller(limit, page, session)
+    use_case: Annotated[
+        ListUsers,
+        Depends(get_list_users),
+    ],
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> list[UserResponse]:
+    return await list_users_controller(use_case, limit=limit)
 
+@router.get("/{identifier}", response_model=UserGetResponse)
+async def get_users(
+    identifier: UUID,
+    use_case: Annotated[GetUsers, Depends(get_get_users)],
+) -> UserGetResponse:
+    return await get_users_controller(use_case, identifier)
 
-@router.post(
-    "/",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Crear usuario",
-    description="Crea un nuevo usuario y lo persiste en la base de datos.",
-    response_description="Usuario creado",
-    responses={
-        400: {"model": ErrorResponse, "description": "Datos de entrada inválidos"},
-        409: {"model": ErrorResponse, "description": "Email ya existe"},
-        422: {"description": "Error de validación de FastAPI"},
-    },
-)
-async def create_user(
-        payload: UserCreateRequest,
-        session: AsyncSession = Depends(get_db_session)  # Inyeccion de la sesion
-):
-    return await create_user_controller(payload, session)
+@router.put("/{identifier}", response_model=UserUpdateResponse)
+async def update_users(
+    identifier: UUID,
+    request: UserUpdateRequest,
+    use_case: Annotated[UpdateUsers, Depends(get_update_users)],
+) -> UserUpdateResponse:
+    return await update_users_controller(use_case, identifier, request)
 
-
-@router.put(
-    "/{user_id}",
-    response_model=UserResponse,
-    summary="Actualizar usuario",
-    description="Actualiza un usuario existente por UUID.",
-    response_description="Usuario actualizado",
-    responses={
-        400: {"model": ErrorResponse, "description": "Datos de entrada inválidos"},
-        404: {"model": ErrorResponse, "description": "Usuario no encontrado"},
-        409: {"model": ErrorResponse, "description": "Email ya existe"},
-        422: {"description": "Error de validación de FastAPI"},
-    },
-)
-async def update_user(
-        user_id: uuid.UUID,
-        payload: UserUpdateRequest,
-        session: AsyncSession = Depends(get_db_session)
-):
-    return await update_user_controller(user_id, payload, session)
-
-
-@router.get(
-    "/{user_id}",
-    response_model=UserResponse,
-    summary="Obtener usuario por ID",
-    description="Recupera un usuario por UUID desde la capa de persistencia.",
-    response_description="Usuario encontrado",
-    responses={404: {"description": "Usuario no encontrado"}},
-)
-async def get_user(
-        user_id: uuid.UUID,
-        session: AsyncSession = Depends(get_db_session)  # Inyeccion de la sesion
-):
-    return await get_user_controller(user_id, session)
-
-
-@router.delete(
-    "/{user_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Eliminar usuario (soft delete)",
-    description="Marca un usuario como eliminado de forma logica sin borrarlo fisicamente de la base de datos.",
-    responses={
-        204: {"description": "Usuario eliminado logicamente"},
-        404: {"model": ErrorResponse, "description": "Usuario no encontrado"},
-        422: {"description": "Error de validacion de FastAPI"},
-    },
-)
-async def delete_user(
-        user_id: uuid.UUID,
-        session: AsyncSession = Depends(get_db_session)
-):
-
-    return await delete_user_controller(user_id, session)
-
+@router.delete("/{identifier}", status_code=204)
+async def delete_users(
+    identifier: UUID,
+    use_case: Annotated[DeleteUsers, Depends(get_delete_users)],
+) -> None:
+    await delete_users_controller(use_case, identifier)

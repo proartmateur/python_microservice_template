@@ -1,162 +1,211 @@
-import uuid
-from datetime import datetime, timezone
-from typing import Optional
-from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.modules.users.infrastructure.persistence.models import UserModel
+
+from src.modules.users.domain.repositories import UserRepository
+
+# gencli:repository-adapter-imports
+from datetime import datetime, timezone
+from src.modules.users.domain.exceptions import (
+    UserAlreadyExistsError,
+    UserNotFoundError,
+)
+from typing import cast
+from uuid import UUID
+from sqlalchemy.exc import IntegrityError
+from src.shared.domain.find_by import FindByCriteria, FindByOperator, FindByResult
+from src.shared.domain.pagination import CursorPage, KeysetCursor
 from src.modules.users.domain.entities import UserEntity
+from src.modules.users.infrastructure.persistence.models import UserModel
 
+class PostgresUserRepository(UserRepository):
+    """Adaptador PostgreSQL del puerto UserRepository."""
 
-class UserRepository:
     def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+        self._session = session
 
-    async def list_paginated(self, limit: int = 5, page: int = 0) -> tuple[list[UserEntity], int, int]:
-        """Lista usuarios paginados y devuelve tambien total de usuarios y paginas."""
-        if limit is None:
-            limit = 5
-        if page is None:
-            page = 0
-
-        if limit <= 0:
-            raise ValueError("limit debe ser mayor a 0")
-        if page < 0:
-            raise ValueError("page no puede ser negativo")
-
-        count_stmt = select(func.count()).select_from(UserModel).where(UserModel.deleted_at.is_(None))
-        count_result = await self.session.execute(count_stmt)
-        total_users = count_result.scalar_one()
-        total_pages = (total_users + limit - 1) // limit
-
-        offset = page * limit
-        stmt = (
+    # gencli:repository-adapter-methods
+    async def soft_delete(self, identifier: UUID) -> None:
+        statement = select(UserModel).where(
+            UserModel.id_user == identifier,
+            UserModel.deleted_at.is_(None),
+        )
+        result = await self._session.execute(statement)
+        model = result.scalar_one_or_none()
+        if model is None:
+            raise UserNotFoundError("User not found")
+        model.deleted_at = datetime.now(timezone.utc)
+        await self._session.flush()
+    async def update(self, identifier: UUID, **values: object) -> UserEntity:
+        statement = select(UserModel).where(
+            UserModel.id_user == identifier,
+            UserModel.deleted_at.is_(None),
+        )
+        result = await self._session.execute(statement)
+        model = result.scalar_one_or_none()
+        if model is None:
+            raise UserNotFoundError("User not found")
+        model.nombre = cast('str', values['nombre'])
+        model.email = cast('str', values['email'])
+        try:
+            await self._session.flush()
+        except IntegrityError as exc:
+            raise UserAlreadyExistsError("User already exists") from exc
+        return UserEntity(
+                id_user=model.id_user,
+                nombre=model.nombre,
+                email=model.email,
+                created_at=model.created_at
+        )
+    async def find_by_id(self, identifier: UUID) -> UserEntity | None:
+        statement = select(UserModel).where(
+            UserModel.id_user == identifier,
+            UserModel.deleted_at.is_(None),
+        )
+        result = await self._session.execute(statement)
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        return UserEntity(
+                id_user=model.id_user,
+                nombre=model.nombre,
+                email=model.email,
+                created_at=model.created_at
+        )
+    async def save(self, entity: UserEntity) -> UserEntity:
+        model = UserModel(
+            id_user=entity.id_user,
+            nombre=entity.nombre,
+            email=entity.email,
+            created_at=entity.created_at
+        )
+        self._session.add(model)
+        try:
+            await self._session.flush()
+        except IntegrityError as exc:
+            await self._session.rollback()
+            raise UserAlreadyExistsError("User already exists") from exc
+        return entity
+    async def find_by(
+        self, *, criteria: FindByCriteria, limit: int,
+        cursor: KeysetCursor | None, pagination: bool
+    ) -> FindByResult[UserEntity]:
+        columns = {
+            "nombre": UserModel.nombre,
+            "email": UserModel.email
+        }
+        column = columns[criteria.field]
+        if criteria.operator is FindByOperator.EQUALS:
+            predicate = column == criteria.value
+        elif criteria.operator is FindByOperator.CONTAINS:
+            predicate = column.contains(criteria.value)
+        else:
+            predicate = column.startswith(criteria.value)
+        statement = select(UserModel).where(
+            UserModel.deleted_at.is_(None), predicate
+        )
+        if pagination and cursor is not None:
+            statement = statement.where(
+                or_(
+                    UserModel.created_at > cursor.created_at,
+                    and_(
+                        UserModel.created_at == cursor.created_at,
+                        UserModel.id_user > cursor.identifier,
+                    ),
+                )
+            )
+        statement = statement.order_by(
+            UserModel.created_at, UserModel.id_user
+        ).limit(limit + 1 if pagination else limit)
+        result = await self._session.execute(statement)
+        rows = list(result.scalars())
+        has_next = pagination and len(rows) > limit
+        page_rows = rows[:limit]
+        next_position = None
+        if has_next:
+            last_row = page_rows[-1]
+            next_position = KeysetCursor(
+                created_at=last_row.created_at,
+                identifier=last_row.id_user,
+            )
+        return FindByResult(
+            items=[
+                UserEntity(
+                id_user=db_user.id_user,
+                nombre=db_user.nombre,
+                email=db_user.email,
+                created_at=db_user.created_at
+                )
+                for db_user in page_rows
+            ],
+            next_position=next_position,
+            has_next=has_next,
+        )
+    async def list_paginated(
+        self, *, limit: int, cursor: KeysetCursor | None
+    ) -> CursorPage[UserEntity]:
+        statement = select(UserModel).where(
+            UserModel.deleted_at.is_(None)
+        )
+        if cursor is not None:
+            statement = statement.where(
+                or_(
+                    UserModel.created_at > cursor.created_at,
+                    and_(
+                        UserModel.created_at
+                        == cursor.created_at,
+                        UserModel.id_user
+                        > cursor.identifier,
+                    ),
+                )
+            )
+        statement = (
+            statement.order_by(
+                UserModel.created_at,
+                UserModel.id_user,
+            )
+            .limit(limit + 1)
+        )
+        result = await self._session.execute(statement)
+        rows = list(result.scalars())
+        has_next = len(rows) > limit
+        page_rows = rows[:limit]
+        next_position = None
+        if has_next:
+            last_row = page_rows[-1]
+            next_position = KeysetCursor(
+                created_at=last_row.created_at,
+                identifier=last_row.id_user,
+            )
+        return CursorPage(
+            items=[
+                UserEntity(
+                id_user=db_user.id_user,
+                nombre=db_user.nombre,
+                email=db_user.email,
+                created_at=db_user.created_at
+                )
+                for db_user in page_rows
+            ],
+            next_position=next_position,
+            has_next=has_next,
+        )
+    async def list(self, *, limit: int) -> list[UserEntity]:
+        statement = (
             select(UserModel)
             .where(UserModel.deleted_at.is_(None))
-            .order_by(UserModel.created_at, UserModel.id_user)
-            .offset(offset)
+            .order_by(
+                UserModel.created_at,
+                UserModel.id_user,
+            )
             .limit(limit)
         )
-
-        result = await self.session.execute(stmt)
-        db_users = result.scalars().all()
-
-        users = [
+        result = await self._session.execute(statement)
+        return [
             UserEntity(
-                id_user=db_user.id_user,
-                nombre=db_user.name,
-                email=db_user.email,
-                created_at=db_user.created_at,
+            id_user=db_user.id_user,
+            nombre=db_user.nombre,
+            email=db_user.email,
+            created_at=db_user.created_at
             )
-            for db_user in db_users
+            for db_user in result.scalars()
         ]
-
-        return users, total_users, total_pages
-
-    async def find_by_id(self, user_id: uuid.UUID) -> Optional[UserEntity]:
-        """Busca un usuario por su UUID y devuelve la Entidad de Dominio"""
-
-        # 1. Construimos el SELECT
-        stmt = select(UserModel).where(
-            UserModel.id_user == user_id,
-            UserModel.deleted_at.is_(None),
-        )
-
-        # 2. Ejecutamos la consulta asíncrona
-        result = await self.session.execute(stmt)
-
-        # 3. Extraemos el objeto de la base de datos
-        # scalar_one_or_none() devuelve el registro si existe, o None si no lo encuentra.
-        db_user = result.scalar_one_or_none()
-
-        if db_user is None:
-            return None
-
-        # 4. Mapeamos el modelo acoplado a la DB hacia tu Entidad pura
-        return UserEntity(
-            id_user=db_user.id_user,
-            nombre=db_user.name,
-            email=db_user.email,
-            created_at=db_user.created_at,
-        )
-
-    async def soft_delete(self, user_id: uuid.UUID) -> bool:
-        """Marca un usuario como eliminado sin borrarlo fisicamente."""
-        stmt = select(UserModel).where(
-            UserModel.id_user == user_id,
-            UserModel.deleted_at.is_(None),
-        )
-        result = await self.session.execute(stmt)
-        db_user = result.scalar_one_or_none()
-
-        if db_user is None:
-            return False
-
-        db_user.deleted_at = datetime.now(timezone.utc)
-        await self.session.commit()
-        return True
-
-    async def create(self, nombre: str, email: str) -> UserEntity:
-        """Crea un usuario nuevo y devuelve la entidad de dominio persistida."""
-        clean_name = nombre.strip()
-        clean_email = email.strip()
-
-        if not clean_name:
-            raise ValueError("El nombre es obligatorio")
-        if "@" not in clean_email:
-            raise ValueError("Email inválido")
-
-        user = UserEntity(nombre=clean_name, email=clean_email)
-        db_user = UserModel(
-            id_user=uuid.UUID(str(user.id_user)),
-            name=user.nombre,
-            email=user.email,
-            created_at=user.created_at,
-        )
-
-        self.session.add(db_user)
-
-        try:
-            await self.session.commit()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise ValueError("Ya existe un usuario con ese email") from exc
-
-        return user
-
-    async def update(self, user_id: uuid.UUID, nombre: str, email: str) -> Optional[UserEntity]:
-        """Actualiza nombre y email de un usuario activo."""
-        clean_name = nombre.strip()
-        clean_email = email.strip()
-
-        if not clean_name:
-            raise ValueError("El nombre es obligatorio")
-        if "@" not in clean_email:
-            raise ValueError("Email inválido")
-
-        stmt = select(UserModel).where(
-            UserModel.id_user == user_id,
-            UserModel.deleted_at.is_(None),
-        )
-        result = await self.session.execute(stmt)
-        db_user = result.scalar_one_or_none()
-
-        if db_user is None:
-            return None
-
-        db_user.name = clean_name
-        db_user.email = clean_email
-
-        try:
-            await self.session.commit()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise ValueError("Ya existe un usuario con ese email") from exc
-
-        return UserEntity(
-            id_user=db_user.id_user,
-            nombre=db_user.name,
-            email=db_user.email,
-            created_at=db_user.created_at,
-        )
-

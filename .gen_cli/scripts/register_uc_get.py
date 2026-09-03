@@ -170,8 +170,8 @@ def register_get(
         "# gencli:router-imports",
         (
             "from uuid import UUID\n\n"
-            f"from src.modules.{plural_name}.infrastructure.http.controllers."
-            f"get_{plural_name}_controller import get_{plural_name}_controller\n"
+            f"from .controllers.get_{plural_name}_controller import "
+            f"get_{plural_name}_controller\n"
             f"from src.modules.{plural_name}.infrastructure.http.dependencies "
             f"import get_get_{plural_name}\n"
             f"from src.modules.{plural_name}.infrastructure.http.schemas import "

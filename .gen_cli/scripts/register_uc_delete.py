@@ -52,7 +52,7 @@ def register_delete(generated_file: Path, entity_name: str, snake_name: str, inl
     documents[router_path] = _insert_after_marker(
         documents[router_path], "# gencli:router-imports", "from uuid import UUID"
     )
-    documents[router_path] = _insert_after_marker(documents[router_path], "# gencli:router-imports", f"from src.modules.{plural_name}.infrastructure.http.controllers.delete_{plural_name}_controller import delete_{plural_name}_controller\nfrom src.modules.{plural_name}.infrastructure.http.dependencies import get_delete_{plural_name}\nfrom src.modules.{plural_name}.use_cases.delete_{plural_name} import Delete{plural_entity}")
+    documents[router_path] = _insert_after_marker(documents[router_path], "# gencli:router-imports", f"from .controllers.delete_{plural_name}_controller import delete_{plural_name}_controller\nfrom src.modules.{plural_name}.infrastructure.http.dependencies import get_delete_{plural_name}\nfrom src.modules.{plural_name}.use_cases.delete_{plural_name} import Delete{plural_entity}")
     documents[router_path] = _append_after_marker(documents[router_path], "# gencli:routes", f'@router.delete("/{{identifier}}", status_code=204)\nasync def delete_{plural_name}(\n    identifier: UUID,\n    use_case: Annotated[Delete{plural_entity}, Depends(get_delete_{plural_name})],\n) -> None:\n    await delete_{plural_name}_controller(use_case, identifier)')
     documents[main_path] = _insert_after_marker(documents[main_path], "# gencli:router-imports", f"from src.modules.{plural_name}.infrastructure.http.routers import router as {plural_name}_router")
     documents[main_path] = _insert_after_marker(documents[main_path], "# gencli:router-includes", f'    app.include_router({plural_name}_router, prefix="/api/v1")')

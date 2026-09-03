@@ -1,6 +1,6 @@
 # PLAN-01 · Implementación incremental de REQS-01
 
-> **Estado:** En curso · Fases 0 a 8 completadas a nivel de generador; la migración de los módulos heredados se realizará al completar sus comandos `--uc-*`.
+> **Estado:** Completada (Fases 0 a 10). Fase 10 cerró el ciclo: `--mvc` retirado, módulos heredados de 2 capas eliminados, `users` regenerado íntegramente con el generador como módulo de referencia, CI y documentación sincronizadas.
 > **Alcance:** Implementar REQS-01 con GenCLI v2: `--hex` crea el núcleo y cada `--uc-*` añade una capacidad vertical.
 > **Estimación total:** 18 días hábiles de desarrollo efectivo para una persona senior, más 1.5 a 2 días de contingencia.
 > **Restricción del plan:** Ninguna fase supera 2 días hábiles.
@@ -239,6 +239,7 @@
 ### Fase 10 — Calidad, documentación y cierre
 
 **Duración:** 1.5 días
+**Estado:** Completada. `--mvc` fue retirado de `arq.json` junto con sus templates; los módulos heredados `users` y `products` (2 capas) y la suite e2e heredada se eliminaron; `users` se regeneró exclusivamente con `--hex` + los siete `--uc-*` y pasa ruff/mypy estricto/pytest. La CI ejecuta las tres puertas de calidad y el smoke test de generación aislada.
 
 **Actividades:**
 
