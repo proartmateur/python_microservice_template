@@ -34,6 +34,79 @@ módulo inexistente falla sin modificar archivos.
 
 Propiedades soportadas: `str`, `int`, `float`, `bool`, `datetime`, `UUID`.
 
+## Soft delete y filtrado condicional de `deleted_at`
+
+El comando `--uc-delete` implementa **soft delete** (borrado lógico): en
+lugar de eliminar la fila, fija `deleted_at` con la marca temporal UTC del
+momento del borrado. Las lecturas posteriores excluyen automáticamente las
+filas con `deleted_at` no nulo.
+
+### Columna `deleted_at`
+
+La columna `deleted_at` se genera **siempre** en `--hex` (entidad, modelo
+SQLAlchemy y migración `create_table`). Es `nullable=True` y por defecto
+`NULL` (activo). El índice parcial keyset también la usa:
+
+```sql
+CREATE INDEX ix_<ent>s_active_created_id
+ON <ent>s (created_at, id_<ent>)
+WHERE deleted_at IS NULL;
+```
+
+### Filtro condicional en los casos de uso de lectura
+
+Los hooks de `--uc-list`, `--uc-list-paginated`, `--uc-find-by`, `--uc-get`
+y `--uc-update` detectan si el modelo SQLAlchemy del módulo define la
+columna `deleted_at` antes de generar el filtro `deleted_at IS NULL` en la
+query. Esto se hace en tiempo de **generación de código** (no en runtime):
+el hook lee `models.py` y, si encuentra `deleted_at`, incluye el filtro;
+si no lo encuentra, genera la query sin el filtro.
+
+| Caso de uso | Filtro generado si `deleted_at` existe |
+|---|---|
+| `--uc-list` | `.where(Model.deleted_at.is_(None))` |
+| `--uc-list-paginated` | `select(Model).where(Model.deleted_at.is_(None))` |
+| `--uc-find-by` | `.where(Model.deleted_at.is_(None), predicate)` |
+| `--uc-get` | `.where(Model.id == identifier, Model.deleted_at.is_(None))` |
+| `--uc-update` | `.where(Model.id == identifier, Model.deleted_at.is_(None))` |
+
+Si `deleted_at` no existe en el modelo, el filtro se omite y la query
+funciona sin error. Esto permite que módulos sin `--uc-delete` (o donde se
+eliminó con `delete_use_case`) no rompan al consultar la tabla.
+
+### Migración `ALTER TABLE` para módulos existentes
+
+Si la tabla ya existe **sin** la columna `deleted_at` (por ejemplo, un
+módulo creado antes de este cambio), `--uc-delete` genera un script de
+migración opcional para añadirla:
+
+```bash
+uv run poe add_soft_delete_<module>s
+```
+
+El script ejecuta:
+
+```sql
+ALTER TABLE <tabla> ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS ix_<tabla>_active_created_id
+ON <tabla> (created_at, id_<ent>) WHERE deleted_at IS NULL;
+```
+
+La migración es **opcional**: el usuario decide cuándo ejecutarla. Requiere
+`REPOSITORY_DATA_SOURCE=database` y credenciales `PG_*` en `.env`.
+
+### Eliminar `--uc-delete` con `delete_use_case`
+
+Al ejecutar `poe delete_use_case <Module> delete`, el script elimina el
+método `soft_delete` del puerto, adaptador y faker, la ruta HTTP, el
+controller, el test y el provider. **No elimina la columna `deleted_at`**
+de la entidad ni del modelo: la columna es inofensiva (nullable, NULL por
+defecto) y evita reescribir las queries de los demás casos de uso que ya
+filtran por ella.
+
+Si se vuelve a ejecutar `./gen --uc-delete`, el hook detecta que `deleted_at`
+ya existe y no la duplica.
+
 ## Ejemplo completo (módulo de referencia)
 
 ```bash
@@ -142,6 +215,11 @@ Por cada caso de uso, el script limpia **9 puntos** del módulo:
 `src/main.py` **no se modifica**: el router del módulo sigue registrado
 porque los demás casos de uso siguen activos. La limpieza de `main.py` la
 hace `delete_module` cuando se elimina el módulo completo.
+
+Al eliminar `delete` (`poe delete_use_case <Module> delete`), la columna
+`deleted_at` **permanece** en la entidad y el modelo. Ver la sección
+[Soft delete y filtrado condicional](#soft-delete-y-filtrado-condicional-de-deleted_at)
+para más detalle.
 
 ### Garantías de seguridad
 

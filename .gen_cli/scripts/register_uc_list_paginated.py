@@ -13,6 +13,7 @@ from register_uc_list import (
     _find_module_root,
     _find_project_root,
     _insert_after_marker,
+    _model_has_deleted_at,
     _parse_properties,
     _parse_property_types,
     _read_required,
@@ -110,6 +111,15 @@ def register_list_paginated(
         "# gencli:repository-adapter-imports",
         "from sqlalchemy import and_, or_",
     )
+    has_soft_delete = _model_has_deleted_at(module_root)
+    if has_soft_delete:
+        select_statement = (
+            f"        statement = select({entity_name}Model).where(\n"
+            f"            {entity_name}Model.deleted_at.is_(None)\n"
+            "        )\n"
+        )
+    else:
+        select_statement = f"        statement = select({entity_name}Model)\n"
     documents[adapter_path] = _insert_after_marker(
         documents[adapter_path],
         "# gencli:repository-adapter-methods",
@@ -117,9 +127,7 @@ def register_list_paginated(
             f"    async def list_paginated(\n"
             "        self, *, limit: int, cursor: KeysetCursor | None\n"
             f"    ) -> CursorPage[{entity_name}Entity]:\n"
-            f"        statement = select({entity_name}Model).where(\n"
-            f"            {entity_name}Model.deleted_at.is_(None)\n"
-            "        )\n"
+            f"{select_statement}"
             "        if cursor is not None:\n"
             "            statement = statement.where(\n"
             "                or_(\n"

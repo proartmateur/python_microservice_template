@@ -14,6 +14,7 @@ from register_uc_list import (
     _find_module_root,
     _find_project_root,
     _insert_after_marker,
+    _model_has_deleted_at,
     _parse_properties,
     _parse_property_types,
     _read_required,
@@ -105,11 +106,20 @@ def register_update(
         f"model.{property} = cast({property_types[property]!r}, values[{property!r}])"
         for property in properties
     )
+    has_soft_delete = _model_has_deleted_at(module_root)
+    deleted_at_line = (
+        f"            {entity_name}Model.deleted_at.is_(None),\n"
+        if has_soft_delete
+        else ""
+    )
     documents[adapter_path] = _insert_after_marker(
         documents[adapter_path], "# gencli:repository-adapter-methods",
         (
             f"    async def update(self, identifier: UUID, **values: object) -> {entity_name}Entity:\n"
-            f"        statement = select({entity_name}Model).where(\n            {entity_name}Model.id_{snake_name} == identifier,\n            {entity_name}Model.deleted_at.is_(None),\n        )\n"
+            f"        statement = select({entity_name}Model).where(\n"
+            f"            {entity_name}Model.id_{snake_name} == identifier,\n"
+            f"{deleted_at_line}"
+            "        )\n"
             "        result = await self._session.execute(statement)\n"
             "        model = result.scalar_one_or_none()\n"
             "        if model is None:\n"

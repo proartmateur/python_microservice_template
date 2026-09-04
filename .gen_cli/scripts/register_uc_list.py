@@ -157,6 +157,21 @@ def _read_required(paths: Iterable[Path]) -> dict[Path, str]:
     return contents
 
 
+def _model_has_deleted_at(module_root: Path) -> bool:
+    """Detecta si el modelo SQLAlchemy del módulo define la columna ``deleted_at``.
+
+    Esto permite que los hooks de lectura (list, get, find_by, update,
+    list_paginated) generen el filtro ``deleted_at IS NULL`` solo cuando la
+    columna existe, evitando errores de query en módulos sin soft delete.
+    Como ``--hex`` siempre genera ``deleted_at``, en la práctica siempre
+    devuelve ``True``, pero el código es defensivo.
+    """
+    models_path = module_root / "infrastructure" / "persistence" / "models.py"
+    if not models_path.is_file():
+        return False
+    return "deleted_at" in models_path.read_text(encoding="utf-8")
+
+
 def _write_atomically(updates: dict[Path, str]) -> None:
     updates = {
         path: _deduplicate_from_imports(content) for path, content in updates.items()
@@ -295,6 +310,12 @@ def register_list(
         "# gencli:repository-adapter-imports",
         f"{entity_import}\n{model_import}",
     )
+    has_soft_delete = _model_has_deleted_at(module_root)
+    deleted_at_filter = (
+        f"            .where({entity_name}Model.deleted_at.is_(None))\n"
+        if has_soft_delete
+        else ""
+    )
     documents[adapter_path] = _insert_after_marker(
         documents[adapter_path],
         "# gencli:repository-adapter-methods",
@@ -302,7 +323,7 @@ def register_list(
             f"    async def list(self, *, limit: int) -> list[{entity_name}Entity]:\n"
             f"        statement = (\n"
             f"            select({entity_name}Model)\n"
-            f"            .where({entity_name}Model.deleted_at.is_(None))\n"
+            f"{deleted_at_filter}"
             "            .order_by(\n"
             f"                {entity_name}Model.created_at,\n"
             f"                {entity_name}Model.id_{snake_name},\n"

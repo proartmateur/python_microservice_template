@@ -13,6 +13,7 @@ from register_uc_list import (
     _find_module_root,
     _find_project_root,
     _insert_after_marker,
+    _model_has_deleted_at,
     _parse_properties,
     _parse_property_types,
     _read_required,
@@ -125,6 +126,17 @@ def register_find_by(
         f'"{property_name}": {entity_name}Model.{property_name}'
         for property_name in properties
     )
+    has_soft_delete = _model_has_deleted_at(module_root)
+    if has_soft_delete:
+        where_clause = (
+            f"        statement = select({entity_name}Model).where(\n"
+            f"            {entity_name}Model.deleted_at.is_(None), predicate\n"
+            "        )\n"
+        )
+    else:
+        where_clause = (
+            f"        statement = select({entity_name}Model).where(predicate)\n"
+        )
     documents[adapter_path] = _insert_after_marker(
         documents[adapter_path],
         "# gencli:repository-adapter-methods",
@@ -141,9 +153,7 @@ def register_find_by(
             "            predicate = column.contains(criteria.value)\n"
             "        else:\n"
             "            predicate = column.startswith(criteria.value)\n"
-            f"        statement = select({entity_name}Model).where(\n"
-            f"            {entity_name}Model.deleted_at.is_(None), predicate\n"
-            "        )\n"
+            f"{where_clause}"
             "        if pagination and cursor is not None:\n"
             "            statement = statement.where(\n"
             "                or_(\n"

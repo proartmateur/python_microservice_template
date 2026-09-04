@@ -13,6 +13,7 @@ from register_uc_list import (
     _find_module_root,
     _find_project_root,
     _insert_after_marker,
+    _model_has_deleted_at,
     _parse_properties,
     _parse_property_types,
     _read_required,
@@ -99,6 +100,12 @@ def register_get(
     documents[adapter_path] = _insert_after_marker(
         documents[adapter_path], "# gencli:repository-adapter-imports", model_import
     )
+    has_soft_delete = _model_has_deleted_at(module_root)
+    deleted_at_line = (
+        f"            {entity_name}Model.deleted_at.is_(None),\n"
+        if has_soft_delete
+        else ""
+    )
     documents[adapter_path] = _insert_after_marker(
         documents[adapter_path],
         "# gencli:repository-adapter-methods",
@@ -106,7 +113,7 @@ def register_get(
             f"    async def find_by_id(self, identifier: UUID) -> {entity_name}Entity | None:\n"
             f"        statement = select({entity_name}Model).where(\n"
             f"            {entity_name}Model.id_{snake_name} == identifier,\n"
-            f"            {entity_name}Model.deleted_at.is_(None),\n"
+            f"{deleted_at_line}"
             "        )\n"
             "        result = await self._session.execute(statement)\n"
             "        model = result.scalar_one_or_none()\n"
