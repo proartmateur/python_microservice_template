@@ -107,7 +107,11 @@ def resolve_module_directory(raw_name: str, modules_root: Path) -> Path:
 
 
 def resolve_use_case(raw_uc: str) -> str:
-    """Normaliza el nombre del caso de uso a una clave del catálogo."""
+    """Normaliza el nombre del caso de uso a una clave del catálogo.
+
+    Soporta los UCs estándar (list, create, ...) y los custom (custom-*).
+    Para custom, la clave devuelta es ``custom-<route_snake>``.
+    """
     uc = raw_uc.strip().lower().lstrip("-")
     aliases = {
         "uc-list": "list",
@@ -119,12 +123,15 @@ def resolve_use_case(raw_uc: str) -> str:
         "uc-delete": "delete",
     }
     resolved = aliases.get(uc, uc)
-    if resolved not in _USE_CASES:
-        valid = ", ".join(sorted(_USE_CASES))
-        raise MutationError(
-            f"Caso de uso desconocido: {raw_uc!r}. Valores válidos: {valid}"
-        )
-    return resolved
+    if resolved in _USE_CASES:
+        return resolved
+    # Soportar custom-<route> (ej: custom-inventory-summary).
+    if resolved.startswith("custom-"):
+        return resolved
+    valid = ", ".join(sorted(_USE_CASES)) + ", custom-<route>"
+    raise MutationError(
+        f"Caso de uso desconocido: {raw_uc!r}. Valores válidos: {valid}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -520,6 +527,239 @@ def _clean_main(content: str, plural: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _delete_custom_use_case(
+    module_directory: Path,
+    uc_key: str,
+    *,
+    dry_run: bool,
+) -> list[str]:
+    """Elimina un caso de uso custom (custom-<route>) y todas sus huellas."""
+    # extraer route_snake de la clave: "custom-inventory-summary" → "inventory_summary"
+    route_part = uc_key[len("custom-"):]
+    route_snake = re.sub(r"[^a-zA-Z0-9]+", "_", route_part).strip("_").lower()
+    route_pascal = "".join(
+        part.capitalize() for part in re.split(r"[^a-zA-Z0-9]+", route_part) if part
+    )
+    entity_name = _to_pascal_case(module_directory.name)
+    project_root = _find_project_root(module_directory)
+    plural = module_directory.name
+
+    # Archivos propios del UC custom.
+    use_case_file = (
+        module_directory / "use_cases" / f"custom_{route_snake}.py"
+    )
+    controller_file = (
+        module_directory
+        / "infrastructure"
+        / "http"
+        / "controllers"
+        / f"custom_{route_snake}_controller.py"
+    )
+    test_file = (
+        project_root
+        / "tests"
+        / "unit"
+        / "modules"
+        / plural
+        / f"test_custom_{route_snake}.py"
+    )
+    custom_repo_path = (
+        module_directory
+        / "infrastructure"
+        / "persistence"
+        / "custom_repositories.py"
+    )
+    dependencies_path = (
+        module_directory / "infrastructure" / "http" / "dependencies.py"
+    )
+    schemas_path = (
+        module_directory / "infrastructure" / "http" / "schemas.py"
+    )
+    router_path = (
+        module_directory / "infrastructure" / "http" / "routers.py"
+    )
+
+    actions: list[str] = []
+
+    if not use_case_file.is_file():
+        actions.append(
+            f"El caso de uso custom '{route_snake}' no existe en {plural} "
+            f"(falta {use_case_file.relative_to(project_root)})."
+        )
+        return actions
+
+    updates: dict[Path, str] = {}
+
+    # --- Limpiar dependencies.py ---
+    if dependencies_path.is_file():
+        original = dependencies_path.read_text(encoding="utf-8")
+        # Eliminar import del use case (plano o entre paréntesis).
+        cleaned = re.sub(
+            rf"^from src\.modules\.{plural}\.use_cases\.custom_{route_snake}\s+import\s+\(?Custom{route_pascal}\)?\s*\n",
+            "",
+            original,
+            flags=re.MULTILINE,
+        )
+        # Eliminar import del repositorio custom (plano o entre paréntesis).
+        cleaned = re.sub(
+            rf"^from src\.modules\.{plural}\.infrastructure\.persistence\.custom_repositories\s+import\s+\(?Custom{entity_name}Repository\)?\s*\n",
+            "",
+            cleaned,
+            flags=re.MULTILINE,
+        )
+        # Eliminar nombre de imports entre paréntesis.
+        cleaned = _remove_name_from_imports(cleaned, f"Custom{route_pascal}")
+        cleaned = _remove_name_from_imports(cleaned, f"Custom{entity_name}Repository")
+        # Eliminar provider.
+        provider_pattern = re.compile(
+            rf"^\s*def\s+get_custom_{route_snake}\b",
+        )
+        cleaned, _ = _remove_blocks(cleaned, [provider_pattern])
+        # Eliminar import de get_db_session si ya no hay providers custom.
+        if "get_custom_" not in cleaned:
+            cleaned = _remove_name_from_imports(cleaned, "get_db_session")
+            # Eliminar el import plano si quedó solo.
+            cleaned = re.sub(
+                r"^from src\.shared\.infrastructure\.persistence\.database\s+import\s+get_db_session\s*\n",
+                "",
+                cleaned,
+                flags=re.MULTILINE,
+            )
+        cleaned = _clean_orphan_from_imports(cleaned)
+        cleaned = _collapse_blank_lines(cleaned)
+        if cleaned != original:
+            updates[dependencies_path] = cleaned
+            actions.append(
+                f"Provider e import removidos de dependencies: "
+                f"{dependencies_path.relative_to(project_root)}"
+            )
+
+    # --- Limpiar schemas.py ---
+    if schemas_path.is_file():
+        original = schemas_path.read_text(encoding="utf-8")
+        # Eliminar clases de schema.
+        patterns = [
+            re.compile(rf"^\s*class\s+Custom{route_pascal}Request\b"),
+            re.compile(rf"^\s*class\s+Custom{route_pascal}Response\b"),
+        ]
+        cleaned, _ = _remove_blocks(original, patterns)
+        cleaned = _clean_orphan_from_imports(cleaned)
+        cleaned = _collapse_blank_lines(cleaned)
+        if cleaned != original:
+            updates[schemas_path] = cleaned
+            actions.append(
+                f"Schemas removidos: {schemas_path.relative_to(project_root)}"
+            )
+
+    # --- Limpiar routers.py ---
+    if router_path.is_file():
+        original = router_path.read_text(encoding="utf-8")
+        # Eliminar imports planos y entre paréntesis.
+        cleaned = re.sub(
+            rf"^from \.controllers\.custom_{route_snake}_controller\s+import\s+\(?custom_{route_snake}_controller\)?\s*\n",
+            "",
+            original,
+            flags=re.MULTILINE,
+        )
+        cleaned = re.sub(
+            rf"^from src\.modules\.{plural}\.use_cases\.custom_{route_snake}\s+import\s+\(?Custom{route_pascal}\)?\s*\n",
+            "",
+            cleaned,
+            flags=re.MULTILINE,
+        )
+        # Eliminar nombres de imports entre paréntesis.
+        cleaned = _remove_name_from_imports(
+            cleaned, f"custom_{route_snake}_controller"
+        )
+        cleaned = _remove_name_from_imports(
+            cleaned, f"get_custom_{route_snake}"
+        )
+        cleaned = _remove_name_from_imports(
+            cleaned, f"Custom{route_pascal}Request"
+        )
+        cleaned = _remove_name_from_imports(
+            cleaned, f"Custom{route_pascal}Response"
+        )
+        cleaned = _remove_name_from_imports(
+            cleaned, f"Custom{route_pascal}"
+        )
+        cleaned = re.sub(
+            rf"^from src\.modules\.{plural}\.use_cases\.custom_{route_snake}\s+import\s+Custom{route_pascal}\s*\n",
+            "",
+            cleaned,
+            flags=re.MULTILINE,
+        )
+        # Eliminar decorador + ruta.
+        route_func_pattern = re.compile(
+            rf"^\s*async\s+def\s+custom_{route_snake}\b",
+        )
+        lines = cleaned.splitlines(keepends=True)
+        i = 0
+        new_lines: list[str] = []
+        while i < len(lines):
+            stripped = lines[i].strip()
+            if stripped.startswith("@router.") and i + 1 < len(lines):
+                j = i + 1
+                while j < len(lines) and lines[j].strip() == "":
+                    j += 1
+                if j < len(lines) and route_func_pattern.search(lines[j]):
+                    func_end = _block_end(lines, j)
+                    i = func_end + 1
+                    continue
+            new_lines.append(lines[i])
+            i += 1
+        cleaned = "".join(new_lines)
+        cleaned = _clean_orphan_from_imports(cleaned)
+        cleaned = _collapse_blank_lines(cleaned)
+        if cleaned != original:
+            updates[router_path] = cleaned
+            actions.append(
+                f"Ruta e imports removidos del router: "
+                f"{router_path.relative_to(project_root)}"
+            )
+
+    # --- Limpiar custom_repositories.py ---
+    if custom_repo_path.is_file():
+        original = custom_repo_path.read_text(encoding="utf-8")
+        # Eliminar el método del repositorio custom.
+        method_pattern = re.compile(
+            rf"^\s*async\s+def\s+{route_snake}\b",
+        )
+        cleaned, _ = _remove_blocks(original, [method_pattern])
+        cleaned = _collapse_blank_lines(cleaned)
+        # Si el archivo solo tiene la clase vacía, eliminarlo.
+        has_methods = re.search(r"^\s*async\s+def\s+\w+", cleaned, re.MULTILINE)
+        if cleaned != original:
+            if has_methods:
+                updates[custom_repo_path] = cleaned
+                actions.append(
+                    f"Método '{route_snake}' removido de custom_repositories: "
+                    f"{custom_repo_path.relative_to(project_root)}"
+                )
+            else:
+                # No quedan métodos: eliminar el archivo.
+                actions.append(
+                    f"Archivo eliminado (sin métodos restantes): "
+                    f"{custom_repo_path.relative_to(project_root)}"
+                )
+                if not dry_run:
+                    custom_repo_path.unlink()
+
+    # --- Escribir cambios atómicos ---
+    if updates and not dry_run:
+        _write_atomically(updates)
+
+    # --- Eliminar archivos propios del UC ---
+    for file_path in (use_case_file, controller_file, test_file):
+        if file_path.is_file():
+            relative = file_path.relative_to(project_root)
+            actions.append(f"Archivo eliminado: {relative}")
+            if not dry_run:
+                file_path.unlink()
+
+    return actions
+
+
 def delete_use_case(
     module_directory: Path,
     uc_key: str,
@@ -527,6 +767,10 @@ def delete_use_case(
     dry_run: bool,
 ) -> list[str]:
     """Elimina un caso de uso y todas sus huellas en los archivos compartidos."""
+    # --- Caso de uso custom (custom-<route>) ---
+    if uc_key.startswith("custom-"):
+        return _delete_custom_use_case(module_directory, uc_key, dry_run=dry_run)
+
     uc = _USE_CASES[uc_key]
     snake_name = module_directory.name.rstrip("s")
     entity_name = _to_pascal_case(module_directory.name)

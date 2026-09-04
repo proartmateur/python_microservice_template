@@ -11,10 +11,19 @@ from src.modules.products.infrastructure.persistence.faker_repositories import (
     FakerProductStore,
 )
 from src.shared.infrastructure.persistence.database import (
+    get_db_session,
     get_optional_db_session,
 )
 
 # gencli:use-case-imports
+from src.modules.products.use_cases.custom_sales_by_name import CustomSalesByName
+from src.modules.products.use_cases.custom_inventory_summary import (
+    CustomInventorySummary,
+)
+from src.modules.products.infrastructure.persistence.custom_repositories import (
+    CustomProductRepository,
+)
+from src.modules.products.use_cases.delete_products import DeleteProducts
 from src.modules.products.use_cases.update_products import UpdateProducts
 from src.modules.products.use_cases.find_by_products import FindByProducts
 from src.shared.domain.pagination import CursorCodec
@@ -23,11 +32,13 @@ from src.shared.infrastructure.http.dependencies import (
     get_unit_of_work,
 )
 from src.modules.products.use_cases.list_paginated_products import ListPaginatedProducts
+from src.modules.products.use_cases.list_products import ListProducts
 from src.modules.products.use_cases.get_products import GetProducts
 from src.shared.domain.unit_of_work import UnitOfWork
 from src.modules.products.use_cases.create_products import CreateProducts
 
 _faker_product_store: FakerProductStore | None = None
+
 
 def get_faker_product_store() -> FakerProductStore:
     """Provee un store faker singleton por modulo (estado coherente entre requests)."""
@@ -35,6 +46,7 @@ def get_faker_product_store() -> FakerProductStore:
     if _faker_product_store is None:
         _faker_product_store = FakerProductStore()
     return _faker_product_store
+
 
 def get_product_repository(
     session: AsyncSession | None = Depends(get_optional_db_session),
@@ -49,7 +61,21 @@ def get_product_repository(
         )
     return PostgresProductRepository(session)
 
+
 # gencli:use-case-providers
+def get_custom_sales_by_name(
+    session: AsyncSession = Depends(get_db_session),
+) -> CustomSalesByName:
+    return CustomSalesByName(CustomProductRepository(session))
+def get_custom_inventory_summary(
+    session: AsyncSession = Depends(get_db_session),
+) -> CustomInventorySummary:
+    return CustomInventorySummary(CustomProductRepository(session))
+def get_delete_products(
+    repository: ProductRepository = Depends(get_product_repository),
+    unit_of_work: UnitOfWork = Depends(get_unit_of_work),
+) -> DeleteProducts:
+    return DeleteProducts(repository, unit_of_work)
 def get_update_products(
     repository: ProductRepository = Depends(get_product_repository),
     unit_of_work: UnitOfWork = Depends(get_unit_of_work),
@@ -67,6 +93,12 @@ def get_list_paginated_products(
     cursor_codec: CursorCodec = Depends(get_cursor_codec),
 ) -> ListPaginatedProducts:
     return ListPaginatedProducts(repository, cursor_codec)
+def get_list_products(
+    repository: ProductRepository = Depends(
+        get_product_repository
+    ),
+) -> ListProducts:
+    return ListProducts(repository)
 def get_get_products(
     repository: ProductRepository = Depends(get_product_repository),
 ) -> GetProducts:

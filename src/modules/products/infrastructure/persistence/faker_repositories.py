@@ -16,6 +16,7 @@ from src.modules.products.domain.exceptions import (
 from src.shared.domain.find_by import FindByCriteria, FindByOperator, FindByResult
 from src.shared.domain.pagination import CursorPage, KeysetCursor
 
+
 class FakerProductStore:
     """Almacen en memoria para modo faker, compartido entre peticiones."""
 
@@ -49,6 +50,7 @@ class FakerProductStore:
     def lock(self) -> asyncio.Lock:
         return self._lock
 
+
 class FakerProductRepository(ProductRepository):
     """Adaptador en memoria del puerto ProductRepository para modo faker."""
 
@@ -63,6 +65,11 @@ class FakerProductRepository(ProductRepository):
         ]
 
     # gencli:faker-repository-methods
+    async def soft_delete(self, identifier: UUID) -> None:
+        active = self._active()
+        if not any(e.id_product == identifier for e in active):
+            raise ProductNotFoundError("Product not found")
+        self._store.deleted_ids.add(identifier)
     async def update(self, identifier: UUID, **values: object) -> ProductEntity:
         item = None
         for e in self._active():
@@ -165,6 +172,21 @@ class FakerProductRepository(ProductRepository):
             next_position=next_position,
             has_next=has_next,
         )
+    async def list(self, *, limit: int) -> list[ProductEntity]:
+        active = sorted(
+            self._active(),
+            key=lambda e: (e.created_at, e.id_product),
+        )
+        return [
+            ProductEntity(
+            id_product=item.id_product,
+            name=item.name,
+            price=item.price,
+            is_physical=item.is_physical,
+            created_at=item.created_at
+            )
+            for item in active[:limit]
+        ]
     async def find_by_id(self, identifier: UUID) -> ProductEntity | None:
         for item in self._active():
             if item.id_product == identifier:

@@ -8,7 +8,21 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from src.modules.products.domain.entities import ProductEntity
 from src.shared.domain.find_by import FindByCriteria, FindByOperator
 
+
 # gencli:schema-models
+
+class CustomSalesByNameResponse(BaseModel):
+    rows: list[dict[str, object]]
+
+
+class CustomSalesByNameRequest(BaseModel):
+    model_config = ConfigDict(strict=True)
+    name: str
+
+
+class CustomInventorySummaryResponse(BaseModel):
+    rows: list[dict[str, object]]
+
 class ProductUpdateRequest(BaseModel):
     model_config = ConfigDict(strict=True)
     name: str
@@ -85,6 +99,12 @@ class ProductPaginatedResponse(BaseModel):
     next_cursor: str | None
     has_next: bool
     limit: int
+class ProductResponse(BaseModel):
+    id: UUID
+    name: str
+    price: float
+    is_physical: bool
+    created_at: datetime
 class ProductGetResponse(BaseModel):
     id: UUID
     name: str
@@ -126,6 +146,16 @@ def to_product_paginated_item_response(
     entity: ProductEntity,
 ) -> ProductPaginatedItemResponse:
     return ProductPaginatedItemResponse(
+        id=entity.id_product,
+        name=entity.name,
+        price=entity.price,
+        is_physical=entity.is_physical,
+        created_at=entity.created_at
+    )
+def to_product_response(
+    entity: ProductEntity,
+) -> ProductResponse:
+    return ProductResponse(
         id=entity.id_product,
         name=entity.name,
         price=entity.price,

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.modules.products.domain.repositories import ProductRepository
 
 # gencli:repository-adapter-imports
+from datetime import datetime, timezone
 from src.modules.products.domain.exceptions import (
     ProductAlreadyExistsError,
     ProductNotFoundError,
@@ -23,6 +24,17 @@ class PostgresProductRepository(ProductRepository):
         self._session = session
 
     # gencli:repository-adapter-methods
+    async def soft_delete(self, identifier: UUID) -> None:
+        statement = select(ProductModel).where(
+            ProductModel.id_product == identifier,
+            ProductModel.deleted_at.is_(None),
+        )
+        result = await self._session.execute(statement)
+        model = result.scalar_one_or_none()
+        if model is None:
+            raise ProductNotFoundError("Product not found")
+        model.deleted_at = datetime.now(timezone.utc)
+        await self._session.flush()
     async def update(self, identifier: UUID, **values: object) -> ProductEntity:
         statement = select(ProductModel).where(
             ProductModel.id_product == identifier,
@@ -153,6 +165,27 @@ class PostgresProductRepository(ProductRepository):
             next_position=next_position,
             has_next=has_next,
         )
+    async def list(self, *, limit: int) -> list[ProductEntity]:
+        statement = (
+            select(ProductModel)
+            .where(ProductModel.deleted_at.is_(None))
+            .order_by(
+                ProductModel.created_at,
+                ProductModel.id_product,
+            )
+            .limit(limit)
+        )
+        result = await self._session.execute(statement)
+        return [
+            ProductEntity(
+            id_product=db_product.id_product,
+            name=db_product.name,
+            price=db_product.price,
+            is_physical=db_product.is_physical,
+            created_at=db_product.created_at
+            )
+            for db_product in result.scalars()
+        ]
     async def find_by_id(self, identifier: UUID) -> ProductEntity | None:
         statement = select(ProductModel).where(
             ProductModel.id_product == identifier,

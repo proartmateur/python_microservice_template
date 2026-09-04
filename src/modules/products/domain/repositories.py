@@ -10,6 +10,9 @@ class ProductRepository(Protocol):
     """Puerto de persistencia del agregado Product."""
 
     # gencli:repository-port-methods
+    async def soft_delete(self, identifier: UUID) -> None:
+        """Elimina logicamente una entidad activa sin confirmar la transaccion."""
+        ...
     async def update(self, identifier: UUID, **values: object) -> ProductEntity:
         """Actualiza una entidad activa sin confirmar la transaccion."""
         ...
@@ -23,6 +26,9 @@ class ProductRepository(Protocol):
         self, *, limit: int, cursor: KeysetCursor | None
     ) -> CursorPage[ProductEntity]:
         """Devuelve una página keyset de entidades activas."""
+        ...
+    async def list(self, *, limit: int) -> list[ProductEntity]:
+        """Devuelve una colección acotada de entidades activas."""
         ...
     async def find_by_id(self, identifier: UUID) -> ProductEntity | None:
         """Busca una entidad activa por su identidad."""

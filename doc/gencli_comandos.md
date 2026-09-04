@@ -120,6 +120,157 @@ ya existe y no la duplica.
 ./gen --uc-delete Product "name:str,price:float,is_physical:bool"
 ```
 
+## Consultas SQL custom (`gen_custom_query`)
+
+Genera un endpoint vertical completo que ejecuta una consulta SQL nativa de
+PostgreSQL de forma segura con parámetros tipados. Pensado para consumir
+vistas, stored procedures, joins, agregaciones (`SUM`, `AVG`, `COUNT`) u
+otras consultas que no encajan en el patrón CRUD del generador.
+
+A diferencia de `./gen --uc-*`, este comando es un script Python (no pasa
+por el binario `./gen`) porque el SQL puede ser multilínea y contener
+caracteres especiales.
+
+### Sintaxis
+
+```bash
+poe gen_custom_query <Module> --route <route> --method <GET|POST|PUT|DELETE> \
+    --sql "<sql>" [--params "name:type,..."] [--dry-run]
+
+poe gen_custom_query <Module> --route <route> --method <GET|POST|PUT|DELETE> \
+    --sql-file <path.sql> [--params "name:type,..."] [--dry-run]
+```
+
+### Parámetros
+
+| Argumento | Descripción |
+|---|---|
+| `<Module>` | Módulo destino: `Product`, `product` o `products` |
+| `--route` | Nombre de la ruta HTTP (ej: `sales-by-region`, `inventory-summary`) |
+| `--method` | Método HTTP: `GET`, `POST`, `PUT` o `DELETE` |
+| `--sql` | Consulta SQL inline (PostgreSQL nativo) |
+| `--sql-file` | Ruta a archivo `.sql` con la consulta (alternativa a `--sql`) |
+| `--params` | Parámetros tipados: `"region:str,month:int"` (opcional) |
+| `--dry-run` | Preview sin modificar nada |
+
+### Tipos de parámetros soportados
+
+`str`, `int`, `float`, `bool`, `datetime`, `UUID`
+
+### Archivos generados
+
+| Archivo | Descripción |
+|---|---|
+| `use_cases/custom_<route>.py` | Caso de uso que orquesta la consulta |
+| `infrastructure/http/controllers/custom_<route>_controller.py` | Controller HTTP |
+| `infrastructure/persistence/custom_repositories.py` | Repositorio custom con `text()` (se crea o extiende) |
+| `tests/unit/modules/<mod>/test_custom_<route>.py` | Test unitario con fake repository |
+
+Además inyecta en `dependencies.py`, `schemas.py` y `routers.py` (igual que
+los `--uc-*` estándar).
+
+### Seguridad anti-inyección SQL
+
+Los parámetros de runtime **siempre** van parameterized con `text()` y un
+dict de valores:
+
+```python
+# SEGURO: SQLAlchemy envía :name como $1 al driver asyncpg
+result = await self._session.execute(
+    text("WHERE r.name = :name"),
+    {"name": name},
+)
+```
+
+El driver parametriza el valor: nunca se interpola en el SQL. El script
+**nunca** genera `f"... WHERE r.name = '{name}'"` (inyección).
+
+La consulta SQL embebida es confianza de desarrollador (no de usuario): se
+escribe en el código fuente en tiempo de generación, igual que cualquier SQL
+escrito a mano. El riesgo de inyección está en los **parámetros de runtime**,
+no en la query estática.
+
+El script valida que todo `:param` en el SQL esté declarado en `--params`. Si
+falta alguno, aborta sin modificar nada.
+
+### Ejemplos
+
+#### Consulta sin parámetros (vista o agregación simple)
+
+```bash
+poe gen_custom_query Product \
+  --route inventory-summary \
+  --method GET \
+  --sql "SELECT category, COUNT(*) AS total FROM products GROUP BY category"
+```
+
+Genera `GET /api/v1/products/inventory-summary` que devuelve:
+
+```json
+{"rows": [{"category": "electronics", "total": 42}, ...]}
+```
+
+#### Consulta con parámetros (join + WHERE dinámico)
+
+```bash
+poe gen_custom_query Product \
+  --route sales-by-name \
+  --method POST \
+  --sql "SELECT name, SUM(price) AS total FROM products WHERE name = :name GROUP BY name" \
+  --params "name:str"
+```
+
+Genera `POST /api/v1/products/sales-by-name` que acepta:
+
+```json
+{"name": "laptop"}
+```
+
+Y devuelve:
+
+```json
+{"rows": [{"name": "laptop", "total": 9999.99}]}
+```
+
+#### Consulta con SQL desde archivo
+
+```bash
+poe gen_custom_query Product \
+  --route monthly-report \
+  --method POST \
+  --sql-file queries/monthly_report.sql \
+  --params "month:int,year:int"
+```
+
+#### Stored procedure
+
+```bash
+poe gen_custom_query Product \
+  --route calculate-stock \
+  --method POST \
+  --sql "CALL calculate_stock(:warehouse_id)" \
+  --params "warehouse_id:UUID"
+```
+
+### Response
+
+El endpoint devuelve `{"rows": [...]}` donde cada elemento es un diccionario
+con todos los campos que trae la consulta. Los tipos son `object` (sin tipar)
+porque el resultado depende del SQL en runtime. El desarrollador puede
+tipar el response manualmente editando `schemas.py` si lo desea.
+
+### Eliminar una consulta custom
+
+```bash
+poe delete_use_case Product custom-inventory-summary
+poe delete_use_case Product custom-sales-by-name
+```
+
+El formato es `custom-<route>` (con guiones, igual que se pasó a `--route`).
+El script elimina el use case, controller, test, schemas, provider, ruta y
+el método del repositorio custom. Si el `custom_repositories.py` queda sin
+métodos, se borra el archivo completo.
+
 ## Ejemplos de uso de la API generada
 
 ```bash
@@ -177,12 +328,14 @@ poe delete_use_case Product create
 poe delete_use_case Product get
 poe delete_use_case Product update
 poe delete_use_case Product delete
+poe delete_use_case Product custom-inventory-summary  # elimina gen_custom_query
 ```
 
 El nombre del módulo acepta `Product`, `product` o `products` (igual que
 `delete_module`). El nombre del caso de uso acepta las formas cortas
 (`list`, `create`, `get`, …) o las largas con prefijo (`--uc-list`,
-`--uc-create`, …).
+`--uc-create`, …). Para consultas custom, usar `custom-<route>` (ej:
+`custom-inventory-summary`).
 
 ### Casos de uso soportados
 
@@ -195,6 +348,7 @@ El nombre del módulo acepta `Product`, `product` o `products` (igual que
 | `get` | `--uc-get` | `GET /api/v1/<ent>s/{identifier}` |
 | `update` | `--uc-update` | `PUT /api/v1/<ent>s/{identifier}` |
 | `delete` | `--uc-delete` | `DELETE /api/v1/<ent>s/{identifier}` |
+| `custom-<route>` | `gen_custom_query --route <route>` | `<method> /api/v1/<ent>s/<route>` |
 
 ### Qué elimina
 
